@@ -1,4 +1,4 @@
-/src/ScpiNet/bin
-/src/ScpiNet/obj
+/ScpiNet/bin
+/ScpiNet/obj
 /.vscode
 /.vs
