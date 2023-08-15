@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Library</OutputType>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<Authors>Jan Vojtěch, OZM Research s.r.o.</Authors>
+		<Product>SCPI.NET</Product>
+		<AssemblyName>ScpiNet</AssemblyName>
+        <RootNamespace>ScpiNet</RootNamespace>
+        <IsPackable>true</IsPackable>
+		<Version>0.0.0</Version>
+		<Copyright>Copyright © Jan Vojtěch, OZM Research s.r.o. 2021 - 2023</Copyright>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<LangVersion>9.0</LangVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Remove=".gitignore" />
+		<None Remove="bin" />
+		<None Remove="obj" />
+	</ItemGroup>
+
+	<!-- Include Git revesion hash in the InformationalVersion assembly attribute: -->
+	<Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation">
+		<Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8 &amp;&amp; git show -s --format=%%25cd --date=format:%%25y-%%25m-%%25d" ConsoleToMSBuild="True" IgnoreExitCode="False" LogStandardErrorAsError="true" StandardOutputImportance="low">
+			<Output PropertyName="SourceRevisionId" TaskParameter="ConsoleOutput" />
+		</Exec>
+	</Target>
+
+	<!-- Override version attribute by the last Git tag on the current branch: -->
+	<Target Name="SetVersion" BeforeTargets="GetAssemblyVersion" Condition="'$(Configuration)' == 'Release' ">
+		<Exec Command="git describe --tags --abbrev=0" ConsoleToMSBuild="True" IgnoreExitCode="False" LogStandardErrorAsError="true" StandardOutputImportance="low">
+			<Output PropertyName="Version" TaskParameter="ConsoleOutput" />
+		</Exec>
+	</Target>
+
+</Project>
