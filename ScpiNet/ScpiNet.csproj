@@ -3,15 +3,22 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<TargetFramework>netstandard2.0</TargetFramework>
-		<Authors>Jan Vojtěch, OZM Research s.r.o.</Authors>
-		<Product>SCPI.NET</Product>
+		<Authors>Jan Vojtěch (OZM Research s.r.o.)</Authors>
+		<Product>Scpi.NET</Product>
 		<AssemblyName>ScpiNet</AssemblyName>
-        <RootNamespace>ScpiNet</RootNamespace>
-        <IsPackable>true</IsPackable>
-		<Version>0.0.0</Version>
+		<RootNamespace>ScpiNet</RootNamespace>
+		<IsPackable>true</IsPackable>
 		<Copyright>Copyright © Jan Vojtěch, OZM Research s.r.o. 2021 - 2023</Copyright>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<LangVersion>9.0</LangVersion>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+		<PackageProjectUrl>https://github.com/klasyc/ScpiNet</PackageProjectUrl>
+		<PackageTags>SCPI, USB, TMC, Oscilloscope, Tektronix, Keysight, VISA, TekVISA</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageIcon>icon.png</PackageIcon>
+		<PackageDescription>Scpi.NET is a pure C#.NET library for connecting measurement instruments talking SCPI commands over USB or Ethernet.</PackageDescription>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -28,6 +35,23 @@
 		<None Remove="obj" />
 	</ItemGroup>
 
+	<!-- Package icon: -->
+	<ItemGroup>
+		<None Include="icon.png" Pack="true" PackagePath=""/>
+	</ItemGroup>
+
+	<!-- Include the main repository Readme file: -->
+	<ItemGroup>
+		<None Include="..\README.md" Pack="true" PackagePath=""/>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="DotNet.ReproducibleBuilds" Version="1.1.1">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+	</ItemGroup>
+
 	<!-- Include Git revesion hash in the InformationalVersion assembly attribute: -->
 	<Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation">
 		<Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8 &amp;&amp; git show -s --format=%%25cd --date=format:%%25y-%%25m-%%25d" ConsoleToMSBuild="True" IgnoreExitCode="False" LogStandardErrorAsError="true" StandardOutputImportance="low">
@@ -39,6 +63,7 @@
 	<Target Name="SetVersion" BeforeTargets="GetAssemblyVersion" Condition="'$(Configuration)' == 'Release' ">
 		<Exec Command="git describe --tags --abbrev=0" ConsoleToMSBuild="True" IgnoreExitCode="False" LogStandardErrorAsError="true" StandardOutputImportance="low">
 			<Output PropertyName="Version" TaskParameter="ConsoleOutput" />
+			<Output PropertyName="PackageVersion" TaskParameter="ConsoleOutput" />
 		</Exec>
 	</Target>
 
