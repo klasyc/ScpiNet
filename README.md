@@ -46,6 +46,10 @@ where exactly the same driver is used and the connectivity checklist is perfectl
 
 # Usage
 
+Just install the [NuGet package](https://www.nuget.org/packages/ScpiNet) or clone the repository and add
+reference to that. Then you can start with the examples below.
+
+
 ```csharp
 using ScpiNet;
 ...

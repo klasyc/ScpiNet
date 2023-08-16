@@ -17,7 +17,7 @@
 		<PackageTags>SCPI, USB, TMC, Oscilloscope, Tektronix, Keysight, VISA, TekVISA</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageIcon>icon.png</PackageIcon>
-		<PackageDescription>Scpi.NET is a pure C#.NET library for connecting measurement instruments talking SCPI commands over USB or Ethernet.</PackageDescription>
+		<PackageDescription>Scpi.NET is a pure C#.NET library for connecting measurement instruments talking the SCPI commands over USB or Ethernet.</PackageDescription>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 
