@@ -25,9 +25,6 @@ jobs:
           branches: |
             [ 'main' ]
           tag_format: '${version}'
-          extra_plugins: |
-            @semantic-release/changelog@6.0.0
-            @semantic-release/git
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
