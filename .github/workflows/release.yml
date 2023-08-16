@@ -19,6 +19,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Semantic Release
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
         uses: cycjimmy/semantic-release-action@v3
         with:
           semantic_version: 16
