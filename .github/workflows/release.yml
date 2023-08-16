@@ -74,4 +74,4 @@ jobs:
       - name: Install nuget validator
         run: dotnet tool update Meziantou.Framework.NuGetPackageValidation.Tool --global
       - name: Validate package
-        run: meziantou.validate-nuget-package "${{ env.NuGetDirectory }}/*.nupkg"
+        run: meziantou.validate-nuget-package ${{ env.NuGetDirectory }}/*.nupkg
