@@ -75,3 +75,16 @@ jobs:
         run: dotnet tool update Meziantou.Framework.NuGetPackageValidation.Tool --global
       - name: Validate package
         run: meziantou.validate-nuget-package ${{ env.NuGetDirectory }}/*.nupkg
+
+  # Deploys generated package to the Nuget server.
+  deploy:
+    name: Deploy Package
+    runs-on: ubuntu-latest
+    needs: [ build, validate ]
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: nuget
+          path: ${{ env.NuGetDirectory }}
+      - name: Publish NuGet package
+        run: dotnet nuget push ${{ env.NuGetDirectory }}/*.nupkg --api-key "${{ secrets.NUGET_APIKEY }}" --source https://api.nuget.org/v3/index.json
