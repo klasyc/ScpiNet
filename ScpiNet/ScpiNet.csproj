@@ -37,12 +37,12 @@
 
 	<!-- Package icon: -->
 	<ItemGroup>
-		<None Include="icon.png" Pack="true" PackagePath=""/>
+		<None Include="icon.png" Pack="true" PackagePath="" />
 	</ItemGroup>
 
 	<!-- Include the main repository Readme file: -->
 	<ItemGroup>
-		<None Include="..\README.md" Pack="true" PackagePath=""/>
+		<None Include="..\README.md" Pack="true" PackagePath="" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -50,6 +50,7 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
 	</ItemGroup>
 
 	<!-- Include Git revesion hash in the InformationalVersion assembly attribute: -->

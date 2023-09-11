@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace ScpiNet
 {
@@ -15,33 +18,37 @@ namespace ScpiNet
 		public IScpiConnection Connection { get; }
 
 		/// <summary>
+		/// Optional logger instance.
+		/// </summary>
+		protected ILogger<ScpiDevice> Logger { get; }
+
+		/// <summary>
 		/// True if the device has already been disposed.
 		/// </summary>
 		private bool _IsDisposed;
+
+		/// <summary>
+		/// Number style used to parse SCPI numbers in scientific format.
+		/// </summary>
+		public const NumberStyles NumberStyle = NumberStyles.Float;
 
 		/// <summary>
 		/// Creates an instance of SCPI device.
 		/// </summary>
 		/// <param name="connection">Connection to use for device controlling.</param>
 		/// <param name="deviceId">Device identifier retrieved during connection initialization.</param>
-		/// <param name="isSupported">True if the device is supported by the current application version.</param>
-		public ScpiDevice(IScpiConnection connection, string deviceId, bool isSupported = true)
+		/// <param name="logger">Instance of a logger abstraction.</param>
+		public ScpiDevice(IScpiConnection connection, string deviceId, ILogger<ScpiDevice> logger = null)
 		{
 			Connection = connection;
 			InstrumentId = deviceId;
-			IsSupported = isSupported;
+			Logger = logger;
 		}
 
 		/// <summary>
 		/// Device identifier retrieved by *IDN? function call.
 		/// </summary>
 		public string InstrumentId { get; }
-
-		/// <summary>
-		/// True if the instrument is directly supported by the current application version.
-		/// If false, the instrument has not been tested yet and it is controlled by the generic device driver.
-		/// </summary>
-		public bool IsSupported { get; }
 
 		/// <summary>
 		/// Asynchronously disposes the device.
@@ -79,7 +86,7 @@ namespace ScpiNet
 		/// </summary>
 		/// <param name="number">Number to format.</param>
 		/// <returns>String representation of the number.</returns>
-		protected string DoubleToStr(double number)
+		protected static string DoubleToStr(double number)
 		{
 			return number.ToString("G", CultureInfo.InvariantCulture);
 		}
@@ -89,9 +96,74 @@ namespace ScpiNet
 		/// </summary>
 		/// <param name="number">Number to parse.</param>
 		/// <returns>Double-precision number.</returns>
-		protected double ParseDouble(string number)
+		protected static double ParseDouble(string number)
 		{
 			return double.Parse(number, ScpiConnectionExtensions.NumberStyle, CultureInfo.InvariantCulture);
+		}
+
+		/// <summary>
+		/// Performs a query to the device. First a command is sent and then a response is received.
+		/// </summary>
+		/// <param name="command">Command to send. New line is automatically added.</param>
+		/// <returns>Command response.</returns>
+		protected async Task<string> Query(string command)
+		{
+			Logger?.LogDebug($"Query: {command}");
+			await Connection.WriteString(command, true);
+			string response = await Connection.ReadString();
+			Logger?.LogDebug($"Response: {response}");
+			return response;
+		}
+
+		/// <summary>
+		/// Performs a query to the device which returns a dictionary of key-value pairs.
+		/// </summary>
+		/// <param name="command">Command to send. New line is automatically added.</param>
+		/// <returns>Dictionary of key-value pairs.</returns>
+		protected async Task<Dictionary<string, string>> QueryDictionary(string command)
+		{
+			Logger?.LogDebug($"Query dictionary: {command}");
+			await Connection.WriteString(command, true);
+			string response = await Connection.ReadString();
+
+			// The response should start with the header in format :QUERY:SUBQUERY: which has to be removed:
+			Match header = Regex.Match(response, "^:[a-zA-Z0-9:]+:");
+			if (!header.Success) {
+				throw new Exception($"Cannot find response header: '{response}'.");
+			}
+			// Remove the header:
+			response = response.Substring(header.Length);
+
+			// Particular value pairs are separated by semicolons:
+			string[] pairs = response.Split(';');
+
+			// Now parse each pair which is separated by empty space:
+			Dictionary<string, string> result = new();
+			foreach (string pair in pairs) {
+				string[] keyValue = pair.Split(' ');
+				if (keyValue.Length != 2) {
+					throw new Exception($"Invalid key-value pair: '{pair}'");
+				}
+
+				result.Add(keyValue[0], keyValue[1]);
+			}
+
+			Logger?.LogDebug($"Response: {string.Join(", ", result)}");
+			return result;
+		}
+
+		/// <summary>
+		/// Performs a query to the device which returns a floating point number.
+		/// </summary>
+		/// <param name="command">Command to send. New line is automatically added.</param>
+		/// <returns>Double precision number which is result of the query.</returns>
+		protected async Task<double> QueryDouble(string command)
+		{
+			Logger?.LogDebug($"Query double: {command}");
+			string doubleStr = await Query(command);
+			double response = double.Parse(doubleStr, NumberStyle, CultureInfo.InvariantCulture);
+			Logger?.LogDebug($"Response: {response}");
+			return response;
 		}
 	}
 }

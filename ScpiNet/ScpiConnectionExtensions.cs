@@ -1,7 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using System.Collections.Generic;
-using System;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -65,54 +62,6 @@ namespace ScpiNet
 		{
 			await conn.WriteString(command, true);
 			return await conn.ReadString();
-		}
-
-		/// <summary>
-		/// Performs a query to the device which returns a dictionary of key-value pairs.
-		/// </summary>
-		/// <param name="conn">Connection to query from.</param>
-		/// <param name="command">Command to send. New line is automatically added.</param>
-		/// <returns>Dictionary of key-value pairs.</returns>
-		public static async Task<Dictionary<string, string>> QueryDictionary(this IScpiConnection conn, string command)
-		{
-			await conn.WriteString(command, true);
-			string response = await conn.ReadString();
-
-			// The response should start with the header in format :QUERY:SUBQUERY: which has to be removed:
-			Match header = Regex.Match(response, "^:[a-zA-Z0-9:]+:");
-			if (!header.Success) {
-				throw new Exception($"Cannot find response header: '{response}'.");
-			}
-			// Remove the header:
-			response = response.Substring(header.Length);
-
-			// Particular value pairs are separated by semicolons:
-			string[] pairs = response.Split(';');
-
-			// Now parse each pair which is separated by empty space:
-			Dictionary<string, string> result = new();
-			foreach (string pair in pairs) {
-				string[] keyValue = pair.Split(' ');
-				if (keyValue.Length != 2) {
-					throw new Exception($"Invalid key-value pair: '{pair}'");
-				}
-
-				result.Add(keyValue[0], keyValue[1]);
-			}
-
-			return result;
-		}
-
-		/// <summary>
-		/// Performs a query to the device which returns a floating point number.
-		/// </summary>
-		/// <param name="conn">Connection to query from.</param>
-		/// <param name="command">Command to send. New line is automatically added.</param>
-		/// <returns>Double precision number which is result of the query.</returns>
-		public static async Task<double> QueryDouble(this IScpiConnection conn, string command)
-		{
-			string doubleStr = await Query(conn, command);
-			return double.Parse(doubleStr, NumberStyle, CultureInfo.InvariantCulture);
 		}
 
 		/// <summary>
