@@ -16,7 +16,7 @@ namespace ScpiNet
 		/// <summary>
 		/// Number style used to parse SCPI numbers in scientific format.
 		/// </summary>
-		public const NumberStyles NumberStyle = NumberStyles.Float | NumberStyles.AllowLeadingSign | NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite | NumberStyles.AllowDecimalPoint;
+		public const NumberStyles NumberStyle = NumberStyles.Float;
 
 		/// <summary>
 		/// Writes a string to the device.
