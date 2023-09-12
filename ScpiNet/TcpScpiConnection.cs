@@ -2,6 +2,7 @@ using System;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace ScpiNet
 {
@@ -36,16 +37,28 @@ namespace ScpiNet
 		public int Port { get; }
 
 		/// <summary>
+		/// Default response timeout in milliseconds.
+		/// </summary>
+		public const int DefaultTimeout = 250;
+
+		/// <summary>
+		/// Logger instance.
+		/// </summary>
+		protected ILogger<TcpScpiConnection> Logger { get; }
+
+		/// <summary>
 		/// Creates an instance of TcpScpiConnection.
 		/// </summary>
 		/// <param name="host">DNS name or IP address of the SCPI device.</param>
 		/// <param name="port">Target TCP port of the connected SCPI device.</param>
 		/// <param name="timeout">Read/write operation timeout in milliseconds.</param>
-		public TcpScpiConnection(string host, int port, int timeout = 250)
+		/// <param name="logger">Instance of a logger abstraction.</param>
+		public TcpScpiConnection(string host, int port, int timeout = DefaultTimeout, ILogger<TcpScpiConnection> logger = null)
 		{
 			Host = host;
 			Port = port;
 			Timeout = timeout;
+			Logger = logger;
 		}
 
 		/// <summary>
@@ -62,6 +75,7 @@ namespace ScpiNet
 			};
 
 			// Start asynchronous connection and connection timeout task:
+			Logger?.LogInformation($"Creating TCP connection to {Host}:{Port}...", Host, Port);
 			Task timeoutTask = Task.Delay(100, cancellationToken);
 			Task connTask = _Client.ConnectAsync(Host, Port);
 
@@ -70,6 +84,7 @@ namespace ScpiNet
 
 			// Check for cancelling:
 			if (timeoutTask.IsCanceled) {
+				Logger?.LogWarning("Connection to the remote device has been cancelled.");
 				_Client.Dispose();
 				_Client = null;
 				throw new OperationCanceledException();
@@ -77,10 +92,13 @@ namespace ScpiNet
 
 			// Check for timeout:
 			if (timeoutTask.IsCompleted) {
+				Logger?.LogError($"Connection to the remote device {Host}:{Port} timed out.");
 				_Client.Dispose();
 				_Client = null;
 				throw new TimeoutException($"Connection to the remote device {Host}:{Port} timed out.");
 			}
+
+			Logger?.LogInformation("Connection succeeded.");
 		}
 
 		/// <summary>
@@ -88,6 +106,7 @@ namespace ScpiNet
 		/// </summary>
 		public void Close()
 		{
+			Logger?.LogInformation("Closing the TCP connection.");
 			_Client?.Dispose();
 			_Client = null;
 		}
@@ -163,6 +182,7 @@ namespace ScpiNet
 				throw new InvalidOperationException("Cannot clear buffers, the connection is not open.");
 			}
 
+			Logger?.LogDebug("Clearing input buffer.");
 			NetworkStream stream = _Client.GetStream();
 			while (stream.DataAvailable) {
 				await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);

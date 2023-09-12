@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32.SafeHandles;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -366,6 +367,11 @@ namespace ScpiNet
 		public bool IsOpen => DevHandle?.IsInvalid == false && !DevHandle.IsClosed;
 
 		/// <summary>
+		/// Logger instance.
+		/// </summary>
+		protected ILogger<UsbScpiConnection> Logger { get; }
+
+		/// <summary>
 		/// Gets the list of connected USB devices.
 		/// </summary>
 		/// <returns>List of device paths which can be provided to the Create() method.</returns>
@@ -428,11 +434,13 @@ namespace ScpiNet
 		/// Creates an instance of UsbTmc device driver and opens the device..
 		/// </summary>
 		/// <param name="devPath">Device path to open.</param>
-		public UsbScpiConnection(string devPath)
+		/// <param name="logger">Instance of a logger abstraction.</param>
+		public UsbScpiConnection(string devPath, ILogger<UsbScpiConnection> logger = null)
 		{
 			DevicePath = devPath;
 			DevHandle = null;
 			Tag = 1;
+			Logger = logger;
 		}
 
 		/// <summary>
@@ -445,6 +453,7 @@ namespace ScpiNet
 			Close();
 
 			// Open the device for exclusive asynchronous access:
+			Logger?.LogInformation($"Opening USB TMC device '{DevicePath}'...");
 			DevHandle = CreateFile(
 				DevicePath,
 				EFileAccess.GenericRead | EFileAccess.GenericWrite,
@@ -466,6 +475,7 @@ namespace ScpiNet
 			// it breaks communication with Keysight multimeter.
 			//ResetPipe();
 
+			Logger?.LogInformation("USB TMC connection succeeded.");
 			return Task.CompletedTask;
 		}
 
@@ -474,8 +484,11 @@ namespace ScpiNet
 		/// </summary>
 		public void Close()
 		{
-			DevHandle?.Close();
-			DevHandle = null;
+			if (DevHandle != null) {
+				Logger?.LogInformation("Closing USB TMC device.");
+				DevHandle.Close();
+				DevHandle = null;
+			}
 		}
 
 		/// <summary>
@@ -490,6 +503,7 @@ namespace ScpiNet
 
 			// Read all data from the device until it is empty. The other way is to use the ResetPipe() method,
 			// but it does not work with all TMC devices.
+			Logger?.LogDebug("Clearing input buffer.");
 			ReadResult result;
 			byte[] buffer = new byte[1024];
 			do {
@@ -504,6 +518,7 @@ namespace ScpiNet
 		{
 			byte[] pipeType = new byte[4] { (byte)UsbTmcPipeType.AllPipes, 0, 0, 0 };
 
+			Logger?.LogDebug("Reset pipe.");
 			bool ret = DeviceIoControl(DevHandle, IoctlUsbTmc.ResetPipe, pipeType, pipeType.Length, IntPtr.Zero, 0, out int _, IntPtr.Zero);
 			if (!ret) {
 				throw new Exception(string.Format("ResetPipe() failed. Last error: {0}.", Marshal.GetLastWin32Error()));
