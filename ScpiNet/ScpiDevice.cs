@@ -102,6 +102,16 @@ namespace ScpiNet
 		}
 
 		/// <summary>
+		/// Executes a SCPI command which does not return any value.
+		/// </summary>
+		/// <param name="command">Command to send. New line is automatically added.</param>
+		protected async Task SendCmd(string command)
+		{
+			Logger?.LogDebug($"Command: {command}");
+			await Connection.WriteString(command, true);
+		}
+
+		/// <summary>
 		/// Performs a query to the device. First a command is sent and then a response is received.
 		/// </summary>
 		/// <param name="command">Command to send. New line is automatically added.</param>
