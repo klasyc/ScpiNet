@@ -121,6 +121,16 @@ namespace ScpiNet
 			Logger?.LogDebug($"Query: {command}");
 			await Connection.WriteString(command, true);
 			string response = await Connection.ReadString();
+
+			// The response should start with the :command, but instead of trailing
+			// question mark there is a space and the response. This header has to be removed:
+			string expectedHeader = ":" + command.Replace("?", " ");
+			if (!response.StartsWith(expectedHeader)) {
+				throw new Exception($"Cannot find response header: '{response}'.");
+			}
+
+			// Remove the header and return the response:
+			response = response.Substring(expectedHeader.Length);
 			Logger?.LogDebug($"Response: {response}");
 			return response;
 		}
@@ -169,11 +179,8 @@ namespace ScpiNet
 		/// <returns>Double precision number which is result of the query.</returns>
 		protected async Task<double> QueryDouble(string command)
 		{
-			Logger?.LogDebug($"Query double: {command}");
 			string doubleStr = await Query(command);
-			double response = double.Parse(doubleStr, NumberStyle, CultureInfo.InvariantCulture);
-			Logger?.LogDebug($"Response: {response}");
-			return response;
+			return double.Parse(doubleStr, NumberStyle, CultureInfo.InvariantCulture);
 		}
 	}
 }
