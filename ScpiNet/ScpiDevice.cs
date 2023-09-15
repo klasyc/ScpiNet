@@ -139,12 +139,12 @@ namespace ScpiNet
 			await Connection.WriteString(command, true);
 			string response = await Connection.ReadString();
 
-			// The response should start with the header in format :QUERY:SUBQUERY: which has to be removed:
-			Match header = Regex.Match(response, "^:[a-zA-Z0-9:]+:");
-			if (!header.Success) {
+			// The response should start with the :command, but instead of trailing
+			// question mark there is a colon. This header has to be removed.
+			string header = ":" + command.Replace("?", ":");
+			if (!response.StartsWith(header)) {
 				throw new Exception($"Cannot find response header: '{response}'.");
 			}
-			// Remove the header:
 			response = response.Substring(header.Length);
 
 			// Particular value pairs are separated by semicolons:
@@ -153,12 +153,14 @@ namespace ScpiNet
 			// Now parse each pair which is separated by empty space:
 			Dictionary<string, string> result = new();
 			foreach (string pair in pairs) {
-				string[] keyValue = pair.Split(' ');
-				if (keyValue.Length != 2) {
+				// The first space in the pair separates the key from the value. String values are quoted
+				// with escaped double quotes. Use regular expression to parse the pair and remove the quotes:
+				Match match = Regex.Match(pair, @"^(?<key>\S+) \\?""?(?<value>[^\\""]+)\\?""?$");
+				if (!match.Success) {
 					throw new Exception($"Invalid key-value pair: '{pair}'");
 				}
 
-				result.Add(keyValue[0], keyValue[1]);
+				result.Add(match.Groups["key"].ToString(), match.Groups["value"].ToString());
 			}
 
 			Logger?.LogDebug($"Response: {string.Join(", ", result)}");
