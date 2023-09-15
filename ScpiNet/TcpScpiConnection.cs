@@ -76,7 +76,7 @@ namespace ScpiNet
 
 			// Start asynchronous connection and connection timeout task:
 			Logger?.LogInformation($"Creating TCP connection to {Host}:{Port}...", Host, Port);
-			Task timeoutTask = Task.Delay(100, cancellationToken);
+			Task timeoutTask = Task.Delay(Timeout, cancellationToken);
 			Task connTask = _Client.ConnectAsync(Host, Port);
 
 			// Wait for either successful connection or timeout:
