@@ -39,7 +39,7 @@ namespace ScpiNet
 		/// <summary>
 		/// Default response timeout in milliseconds.
 		/// </summary>
-		public const int DefaultTimeout = 250;
+		public const int DefaultTimeout = 500;
 
 		/// <summary>
 		/// Logger instance.
