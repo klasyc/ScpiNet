@@ -59,6 +59,7 @@ namespace ScpiNet
 			Port = port;
 			Timeout = timeout;
 			Logger = logger;
+			DevicePath = $"tcp://{host}:{port}";
 		}
 
 		/// <summary>
