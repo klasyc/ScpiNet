@@ -23,11 +23,6 @@ namespace ScpiNet
 		protected ILogger<ScpiDevice> Logger { get; }
 
 		/// <summary>
-		/// True if the device has already been disposed.
-		/// </summary>
-		private bool _IsDisposed;
-
-		/// <summary>
 		/// Number style used to parse SCPI numbers in scientific format.
 		/// </summary>
 		public const NumberStyles NumberStyle = NumberStyles.Float;
@@ -51,11 +46,12 @@ namespace ScpiNet
 		public string InstrumentId { get; }
 
 		/// <summary>
-		/// Asynchronously disposes the device.
+		/// Asynchronously disposes the device. In contrast to the Dispose() method,
+		/// this method is asynchronous and can be used to peacefully terminate communication with the device.
 		/// </summary>
-		protected virtual Task AsyncDispose()
+		public virtual Task Close()
 		{
-			Connection.Dispose();
+			Dispose();
 			return Task.CompletedTask;
 		}
 
@@ -65,11 +61,8 @@ namespace ScpiNet
 		/// <param name="disposing">True if disposing was initiated from the code.</param>
 		protected virtual void Dispose(bool disposing)
 		{
-			_IsDisposed = true;
-
-			// The disposal sequence is asynchronous, but we don't wait for its finishing:
-			if (disposing && !_IsDisposed) {
-				Task.Run(() => AsyncDispose());
+			if (disposing) {
+				Connection.Dispose();
 			}
 		}
 
