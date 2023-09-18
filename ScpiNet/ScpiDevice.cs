@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace ScpiNet
 {
@@ -26,6 +27,21 @@ namespace ScpiNet
 		/// Number style used to parse SCPI numbers in scientific format.
 		/// </summary>
 		public const NumberStyles NumberStyle = NumberStyles.Float;
+
+		/// <summary>
+		/// Number of milliseconds to wait between two consecutive trigger polling requests.
+		/// </summary>
+		protected int EventPollingIntervalMs { get; set; } = 250;
+
+		/// <summary>
+		/// Extended command timeout used in the PollQuery() method which polls the device state when it is busy.
+		/// </summary>
+		protected int ExtendedPollingCommandTimeoutMs { get; set; } = 1500;
+
+		/// <summary>
+		/// Default timeout for BUSY? queries.
+		/// </summary>
+		public const int DefaultPollingTimeoutMs = 10000;
 
 		/// <summary>
 		/// Creates an instance of SCPI device.
@@ -91,7 +107,7 @@ namespace ScpiNet
 		/// <returns>Double-precision number.</returns>
 		protected static double ParseDouble(string number)
 		{
-			return double.Parse(number, ScpiConnectionExtensions.NumberStyle, CultureInfo.InvariantCulture);
+			return double.Parse(number, NumberStyle, CultureInfo.InvariantCulture);
 		}
 
 		/// <summary>
@@ -176,6 +192,48 @@ namespace ScpiNet
 		{
 			string doubleStr = await Query(command);
 			return double.Parse(doubleStr, NumberStyle, CultureInfo.InvariantCulture);
+		}
+
+		/// <summary>
+		/// Periodically sends a command to the device, until the device responds with the expected response.
+		/// The timeoutMs parameter specifies the maximum time to wait for the expected response.
+		/// The reading function uses extended timeout to wait for the response.
+		/// </summary>
+		/// <param name="command">Command to poll the result of.</param>
+		/// <param name="response">Expected command response to cancel polling on.</param>
+		/// <param name="timeoutMs">Timeout in milliseconds. Zero disables the timeout and waits infinitely.</param>
+		/// <param name="cancellationToken">Cancellation token.</param>
+		protected async Task PollQuery(string command, string response, int timeoutMs = DefaultPollingTimeoutMs, CancellationToken cancellationToken = default)
+		{
+			Logger?.LogDebug($"Polling the '{command}' command output and waiting for '{response}'...");
+			DateTime deadline = DateTime.Now.AddMilliseconds(timeoutMs);
+
+			while (!cancellationToken.IsCancellationRequested) {
+				// Query the device state. We will not use the standard Query method because we don't want to spoil the log output
+				// with the polling queries:
+				await Connection.WriteString(command, true);
+
+				// Wait for the response with extended timeout:
+				string responseWithHeader = await Connection.ReadString(ExtendedPollingCommandTimeoutMs, cancellationToken);
+
+				// Strip the response header:
+				string header = ":" + command.Replace("?", " ");
+				if (!responseWithHeader.StartsWith(header)) {
+					throw new Exception($"Cannot find response header: '{responseWithHeader}'.");
+				}
+
+				// Check we have the expected response:
+				if (responseWithHeader.Substring(header.Length) == response) {
+					Logger?.LogDebug($"Polling successfully finished - got '{responseWithHeader}'.");
+					return;
+				}
+
+				// Wait for a while and then try again:
+				await Task.Delay(EventPollingIntervalMs, cancellationToken);
+				if (timeoutMs > 0 && DateTime.Now > deadline) {
+					throw new TimeoutException($"Polling of '{command}' timed out.");
+				}
+			}
 		}
 	}
 }
