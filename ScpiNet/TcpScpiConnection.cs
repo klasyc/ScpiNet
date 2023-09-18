@@ -122,9 +122,10 @@ namespace ScpiNet
 		/// </summary>
 		/// <param name="buffer">Buffer to read data to.</param>
 		/// <param name="readLength">Maximal length of data to be read.</param>
+		/// <param name="specialTimeout">Special timeout (milliseconds). If zero (default value), uses Timeout property value for timeout.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>(Array of bytes actually read, true if there is some data remaining).</returns>
-		public async Task<ReadResult> Read(byte[] buffer, int readLength = -1, CancellationToken cancellationToken = default)
+		public async Task<ReadResult> Read(byte[] buffer, int readLength = -1, int specialTimeout = 0, CancellationToken cancellationToken = default)
 		{
 			if (!IsOpen) {
 				throw new InvalidOperationException("Cannot read data, the connection is not open.");
@@ -142,7 +143,8 @@ namespace ScpiNet
 			Task<int> readTask = stream.ReadAsync(buffer, 0, readLength, cancellationToken);
 
 			// Wait until the read task is finished or timeout is reached:
-			if (await Task.WhenAny(readTask, Task.Delay(Timeout, cancellationToken)) != readTask) {
+			int readTimeout = specialTimeout > 0 ? specialTimeout : Timeout;
+			if (await Task.WhenAny(readTask, Task.Delay(readTimeout, cancellationToken)) != readTask) {
 				throw new TimeoutException("Reading from the device timed out.");
 			}
 

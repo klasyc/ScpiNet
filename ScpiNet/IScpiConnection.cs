@@ -48,9 +48,10 @@ namespace ScpiNet
 		/// </summary>
 		/// <param name="buffer">Buffer to store the data.</param>
 		/// <param name="readLength">Maximum number of bytes to read. Default value -1 reads up to the provided buffer size.</param>
+		/// <param name="specialTimeout">Special timeout (milliseconds). If zero (default value), uses Timeout property value for timeout.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>Reading result structure.</returns>
-		Task<ReadResult> Read(byte[] buffer, int readLength = -1, CancellationToken cancellationToken = default);
+		Task<ReadResult> Read(byte[] buffer, int readLength = -1, int specialTimeout = 0, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Flushes communication buffers.

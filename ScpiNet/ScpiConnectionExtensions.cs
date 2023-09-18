@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+﻿using System.Threading;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,17 +11,13 @@ namespace ScpiNet
 	public static class ScpiConnectionExtensions
 	{
 		/// <summary>
-		/// Number style used to parse SCPI numbers in scientific format.
-		/// </summary>
-		public const NumberStyles NumberStyle = NumberStyles.Float;
-
-		/// <summary>
 		/// Writes a string to the device.
 		/// </summary>
 		/// <param name="conn">Connection to write string to.</param>
 		/// <param name="data">String message to send.</param>
 		/// <param name="addNewLine">If true, automatically adds new line after the message.</param>
-		public static async Task WriteString(this IScpiConnection conn, string data, bool addNewLine = true)
+		/// <param name="cancellationToken">Cancellation token.</param>
+		public static async Task WriteString(this IScpiConnection conn, string data, bool addNewLine = true, CancellationToken cancellationToken = default)
 		{
 			string msg = data;
 
@@ -30,38 +26,28 @@ namespace ScpiNet
 			}
 
 			byte[] binaryData = Encoding.ASCII.GetBytes(msg);
-			await conn.Write(binaryData);
+			await conn.Write(binaryData, cancellationToken);
 		}
 
 		/// <summary>
 		/// Reads a string from the device. The reading is done until all data is read.
 		/// </summary>
 		/// <param name="conn">Connection to read string from.</param>
+		/// <param name="specialTimeout">Special timeout (milliseconds). If zero (default value), uses Timeout property value for timeout.</param>
+		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>String retrieved from the device.</returns>
-		public static async Task<string> ReadString(this IScpiConnection conn)
+		public static async Task<string> ReadString(this IScpiConnection conn, int specialTimeout = 0, CancellationToken cancellationToken = default)
 		{
 			ReadResult chunk;
 			StringBuilder response = new();
 			byte[] buffer = new byte[1024];
 
 			do {
-				chunk = await conn.Read(buffer);
+				chunk = await conn.Read(buffer, -1, specialTimeout, cancellationToken);
 				response.Append(Encoding.ASCII.GetString(chunk.Data, 0, chunk.Length));
 			} while (!chunk.Eof && chunk.Length > 0);
 
 			return response.ToString().TrimEnd('\r', '\n');
-		}
-
-		/// <summary>
-		/// Performs a query to the device. First a command is sent and then a response is received.
-		/// </summary>
-		/// <param name="conn">Connection to query from.</param>
-		/// <param name="command">Command to send. New line is automatically added.</param>
-		/// <returns>Command response.</returns>
-		public static async Task<string> Query(this IScpiConnection conn, string command)
-		{
-			await conn.WriteString(command, true);
-			return await conn.ReadString();
 		}
 
 		/// <summary>
@@ -71,7 +57,8 @@ namespace ScpiNet
 		/// <returns>Device identifier.</returns>
 		public static async Task<string> GetId(this IScpiConnection conn)
 		{
-			return await Query(conn, "*IDN?");
+			await conn.WriteString("*IDN?", true);
+			return await conn.ReadString();
 		}
 	}
 }

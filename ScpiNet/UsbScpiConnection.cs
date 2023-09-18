@@ -507,7 +507,7 @@ namespace ScpiNet
 			ReadResult result;
 			byte[] buffer = new byte[1024];
 			do {
-				result = await Read(buffer, buffer.Length, cancellationToken);
+				result = await Read(buffer, buffer.Length, 0, cancellationToken);
 			} while (!result.Eof);
 		}
 
@@ -600,9 +600,10 @@ namespace ScpiNet
 		/// Performs asynchronous USB read operation.
 		/// </summary>
 		/// <param name="buffer">Buffer to read data into.</param>
+		/// <param name="timeout">Timeout in milliseconds.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>Number of bytes actually read.</returns>
-		protected async Task<int> ReadUsb(byte[] buffer, CancellationToken cancellationToken)
+		protected async Task<int> ReadUsb(byte[] buffer, int timeout, CancellationToken cancellationToken)
 		{
 			return await Task.Run(() => {
 				// This task will synchronize the asynchronous callback with async method:
@@ -627,7 +628,7 @@ namespace ScpiNet
 						}
 
 						// Now wait for the asynchronous callback:
-						if (Task.WaitAny(new Task[] { readTask.Task }, Timeout, cancellationToken) == -1) {
+						if (Task.WaitAny(new Task[] { readTask.Task }, timeout, cancellationToken) == -1) {
 							CancelIo(DevHandle);
 							throw new Exception("ReadFile() system call timed out.");
 						}
@@ -739,9 +740,10 @@ namespace ScpiNet
 		/// </summary>
 		/// <param name="buffer">Buffer to store the read data.</param>
 		/// <param name="readLength">Maximal number of bytes to read.</param>
+		/// <param name="specialTimeout">Special timeout (milliseconds). If zero (default value), uses Timeout property value for timeout.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>Array of bytes actually read and bool which indicates end-of-file (ie. no other data is currently waiting to be read).</returns>
-		public async Task<ReadResult> Read(byte[] buffer, int readLength = -1, CancellationToken cancellationToken = default)
+		public async Task<ReadResult> Read(byte[] buffer, int readLength = -1, int specialTimeout = 0, CancellationToken cancellationToken = default)
 		{
 			int headerSize = Marshal.SizeOf(typeof(UsbTmcHeader));
 
@@ -764,7 +766,8 @@ namespace ScpiNet
 
 			// Receive the answer:
 			byte[] receptionBuffer = new byte[readLength + headerSize];
-			int receivedBytesCount = await ReadUsb(receptionBuffer, cancellationToken);
+			int readTimeout = specialTimeout > 0 ? specialTimeout : Timeout;
+			int receivedBytesCount = await ReadUsb(receptionBuffer, readTimeout, cancellationToken);
 
 			// Remember the last command timestamp:
 			LastCmdTimestamp = DateTime.Now;
