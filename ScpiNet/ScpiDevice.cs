@@ -111,6 +111,24 @@ namespace ScpiNet
 		}
 
 		/// <summary>
+		/// Strips the response header from the response string.
+		/// </summary>
+		/// <param name="response">Response string to strip response from.</param>
+		/// <param name="query">Query used to generate the response.</param>
+		/// <returns>Response without the leading header or exception if the header is not found.</returns>
+		protected static string StripHeader(string response, string query)
+		{
+			// The response should start with the :command, but instead of trailing
+			// question mark there is a space and the response. This header has to be removed:
+			string expectedHeader = ":" + query.Replace("?", " ");
+			if (!response.StartsWith(expectedHeader)) {
+				throw new Exception($"Cannot find response header: '{response}'.");
+			}
+
+			return response.Substring(expectedHeader.Length);
+		}
+
+		/// <summary>
 		/// Executes a SCPI command which does not return any value.
 		/// </summary>
 		/// <param name="command">Command to send. New line is automatically added.</param>
@@ -129,17 +147,7 @@ namespace ScpiNet
 		{
 			Logger?.LogDebug($"Query: {command}");
 			await Connection.WriteString(command, true);
-			string response = await Connection.ReadString();
-
-			// The response should start with the :command, but instead of trailing
-			// question mark there is a space and the response. This header has to be removed:
-			string expectedHeader = ":" + command.Replace("?", " ");
-			if (!response.StartsWith(expectedHeader)) {
-				throw new Exception($"Cannot find response header: '{response}'.");
-			}
-
-			// Remove the header and return the response:
-			response = response.Substring(expectedHeader.Length);
+			string response = StripHeader(await Connection.ReadString(), command);
 			Logger?.LogDebug($"Response: {response}");
 			return response;
 		}
@@ -215,16 +223,11 @@ namespace ScpiNet
 
 				// Wait for the response with extended timeout:
 				string responseWithHeader = await Connection.ReadString(ExtendedPollingCommandTimeoutMs, cancellationToken);
-
-				// Strip the response header:
-				string header = ":" + command.Replace("?", " ");
-				if (!responseWithHeader.StartsWith(header)) {
-					throw new Exception($"Cannot find response header: '{responseWithHeader}'.");
-				}
+				string strippedResponse = StripHeader(responseWithHeader, command);
 
 				// Check we have the expected response:
-				if (responseWithHeader.Substring(header.Length) == response) {
-					Logger?.LogDebug($"Polling successfully finished - got '{responseWithHeader}'.");
+				if (strippedResponse == response) {
+					Logger?.LogDebug($"Polling successfully finished - got '{strippedResponse}'.");
 					return;
 				}
 
