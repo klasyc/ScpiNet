@@ -148,7 +148,12 @@ namespace ScpiNet
 				throw new TimeoutException("Reading from the device timed out.");
 			}
 
-			return new ReadResult(readTask.Result, !stream.DataAvailable, buffer);
+			// The TCP protocol does not have EOF flag like the USB TMC protocol, but all SCPI messages (including curve data)
+			// end with the new line character which can be used as the EOF flag. Correct EOF detection is very important because
+			// some oscilloscopes (MDO3024) sometimes fragment the response into multiple packets and the above reading returns
+			// only the first packet content.
+			bool eof = readTask.Result <= 0 || buffer[readTask.Result - 1] == 0x0a;
+			return new ReadResult(readTask.Result, eof, buffer);
 		}
 
 		/// <summary>
