@@ -16,7 +16,7 @@ namespace ScpiNet
 		/// <summary>
 		/// Connection to the device.
 		/// </summary>
-		public IScpiConnection Connection { get; }
+		public IScpiConnection Connection { get; protected set; }
 
 		/// <summary>
 		/// Optional logger instance.
@@ -78,7 +78,7 @@ namespace ScpiNet
 		protected virtual void Dispose(bool disposing)
 		{
 			if (disposing) {
-				Connection.Dispose();
+				Connection?.Dispose();
 			}
 		}
 
