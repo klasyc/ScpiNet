@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace ScpiNet
 {
@@ -48,6 +49,27 @@ namespace ScpiNet
 			} while (!chunk.Eof && chunk.Length > 0);
 
 			return response.ToString().TrimEnd('\r', '\n');
+		}
+
+		/// <summary>
+		/// Reads a byte array from the device. The reading is done until all data is read.
+		/// </summary>
+		/// <param name="conn">Connection to read bytes from.</param>
+		/// <param name="specialTimeout">Special timeout (milliseconds). If zero (default value), uses Timeout property value for timeout.</param>
+		/// <param name="cancellationToken">Cancellation token.</param>
+		/// <returns>Bytes retrieved from the device.</returns>
+		public static async Task<byte[]>ReadBytes(this IScpiConnection conn, int specialTimeout = 0, CancellationToken cancellationToken = default)
+		{
+			var result = new MemoryStream();
+			var buffer = new byte[1024];
+
+			ReadResult chunk;
+			do {
+				chunk = await conn.Read(buffer, -1, specialTimeout, cancellationToken);
+				result.Write(buffer, 0, chunk.Length);
+			} while (!chunk.Eof && chunk.Length > 0);
+
+			return result.ToArray();
 		}
 
 		/// <summary>
