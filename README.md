@@ -67,12 +67,11 @@ using (IScpiConnection connection = new UsbScpiConnection(devices[0]))
 	// Get the instrument name:
 	string id = await connection.GetId();
 
-	// Now we can send commands and receive responses using extension methods defined in
-	// the `ScpiConnectionExtensions` class. To get a string response, use the `Query` method:
-	string response = await connection.Query("My very special command?");
+	// Send some SCPI command:
+	await Connection.WriteString("My special SCPI command", true);
 
-	// If you expect the result to be a number, use the `QueryDouble` method instead:
-	double value = await connection.QueryDouble("Get number?");
+	// Read the response:
+	string response = await Connection.ReadString();
 	...
 }
 
@@ -86,6 +85,12 @@ using (IScpiConnection connection = TcpScpiConnection("192.168.1.100", 4000))
 	...
 }
 ```
+
+Reading of instrument ID is fine, but you will probably want to send more SCPI commands to the device.
+In order to keep the application architecture clean, you should create a separate class for the instrument
+you are controlling. This can be done by inheriting from the `ScpiDevice` class which already provides some useful
+methods such as `Query()`. Please see the `SampleApp` directory for more details.
+
 
 # Instrument driver considerations
 
