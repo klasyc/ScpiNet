@@ -8,6 +8,7 @@
 		<StartupObject>SampleApp.Program</StartupObject>
 		<ApplicationIcon />
 		<LangVersion>8</LangVersion>
+		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 	
 	<ItemGroup>
