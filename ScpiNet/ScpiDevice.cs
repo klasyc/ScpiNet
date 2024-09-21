@@ -142,12 +142,24 @@ namespace ScpiNet
 		/// Performs a query to the device. First a command is sent and then a response is received.
 		/// </summary>
 		/// <param name="command">Command to send. New line is automatically added.</param>
+		/// <param name="stripHeader">If true, the response header will be automatically stripped from the response.
+		/// Use only when you configured the instrument to include the headers in the response.</param>
+		/// <param name="cancellationToken">Cancellation token. Optional.</param>
 		/// <returns>Command response.</returns>
-		protected async Task<string> Query(string command)
+		protected async Task<string> Query(string command, bool stripHeader = true, CancellationToken cancellationToken = default)
 		{
+			// Send command to the instrument:
 			Logger?.LogDebug($"Query: {command}");
-			await Connection.WriteString(command, true);
-			string response = StripHeader(await Connection.ReadString(), command);
+			await Connection.WriteString(command, true, cancellationToken);
+
+			// Read the response:
+			string response = await Connection.ReadString(0, cancellationToken);
+
+			// If you turned on the response headers, you probably want to strip them from the response:
+			if (stripHeader) {
+				response = StripHeader(response, command);
+			}
+
 			Logger?.LogDebug($"Response: {response}");
 			return response;
 		}
