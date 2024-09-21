@@ -41,10 +41,13 @@ namespace ScpiNet
 		{
 			ReadResult chunk;
 			StringBuilder response = new();
-			byte[] buffer = new byte[1024];
+
+			// Some devices (such as the Keysight multimeters) do not like when we require reading longer than some specific constraint.
+			// Therefore we will use only 128-bytes long buffer for generic string reads.
+			byte[] buffer = new byte[128];
 
 			do {
-				chunk = await conn.Read(buffer, -1, specialTimeout, cancellationToken);
+				chunk = await conn.Read(buffer, buffer.Length, specialTimeout, cancellationToken);
 				response.Append(Encoding.ASCII.GetString(chunk.Data, 0, chunk.Length));
 			} while (!chunk.Eof && chunk.Length > 0);
 

@@ -655,11 +655,12 @@ namespace ScpiNet
 		/// <param name="msgId">Message ID.</param>
 		/// <param name="eom">True to set EOM flag (end of message).</param>
 		/// <param name="data">Data to add after the header.</param>
+		/// <param name="length">Length of data to be transferred. If zero, the length is inferred from the data array length.</param>
 		/// <returns>Byte array containing the USB TMC request.</returns>
-		private byte[] CreateTmcRequest(UsbTmcMsgId msgId, bool eom, byte[] data)
+		private byte[] CreateTmcRequest(UsbTmcMsgId msgId, bool eom, byte[] data, uint length = 0)
 		{
-			uint len = 0;
-			if (data != null) {
+			uint len = length;
+			if (data != null && length == 0) {
 				len = (uint)data.Length;
 			}
 
@@ -762,7 +763,7 @@ namespace ScpiNet
 			await EnforceCommPause(cancellationToken);
 
 			// Write reading request to the device:
-			await WriteUsb(CreateTmcRequest(UsbTmcMsgId.DevDepMsgIn, false, null), cancellationToken);
+			await WriteUsb(CreateTmcRequest(UsbTmcMsgId.DevDepMsgIn, false, null, (uint)readLength), cancellationToken);
 
 			// Receive the answer:
 			byte[] receptionBuffer = new byte[readLength + headerSize];
