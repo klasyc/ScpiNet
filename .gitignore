@@ -1,4 +1,6 @@
 /ScpiNet/bin
 /ScpiNet/obj
+/SampleApp/bin
+/SampleApp/obj
 /.vscode
 /.vs

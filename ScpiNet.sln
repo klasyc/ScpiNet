@@ -1,22 +1,31 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.34031.81
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScpiNet", "ScpiNet\ScpiNet.csproj", "{39632F14-6822-4ABA-BCFD-F0D544B6B616}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ScpiNet", "ScpiNet\ScpiNet.csproj", "{39632F14-6822-4ABA-BCFD-F0D544B6B616}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApp", "SampleApp\SampleApp.csproj", "{1733603D-79FD-4738-B3C6-EF0429CC3238}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{39632F14-6822-4ABA-BCFD-F0D544B6B616}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{39632F14-6822-4ABA-BCFD-F0D544B6B616}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{39632F14-6822-4ABA-BCFD-F0D544B6B616}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{39632F14-6822-4ABA-BCFD-F0D544B6B616}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1733603D-79FD-4738-B3C6-EF0429CC3238}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1733603D-79FD-4738-B3C6-EF0429CC3238}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1733603D-79FD-4738-B3C6-EF0429CC3238}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1733603D-79FD-4738-B3C6-EF0429CC3238}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {13478ADC-7059-4CC8-BE2C-ED227518CDC7}
 	EndGlobalSection
 EndGlobal
