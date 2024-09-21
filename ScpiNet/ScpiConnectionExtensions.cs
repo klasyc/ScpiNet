@@ -79,11 +79,12 @@ namespace ScpiNet
 		/// Gets instrument identification using *IDN? command.
 		/// </summary>
 		/// <param name="conn">Connection to use for identification query.</param>
+		/// <param name="cancellationToken">Cancellation token. Optional.</param>
 		/// <returns>Device identifier.</returns>
-		public static async Task<string> GetId(this IScpiConnection conn)
+		public static async Task<string> GetId(this IScpiConnection conn, CancellationToken cancellationToken = default)
 		{
-			await conn.WriteString("*IDN?", true);
-			return await conn.ReadString();
+			await conn.WriteString("*IDN?", true, cancellationToken);
+			return await conn.ReadString(0, cancellationToken);
 		}
 	}
 }
