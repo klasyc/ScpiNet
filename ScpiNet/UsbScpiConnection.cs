@@ -2,6 +2,7 @@
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -383,7 +384,7 @@ namespace ScpiNet
 			// Create a list of devices in USBTMC class:
 			IntPtr deviceInterfaceSet = SetupDiGetClassDevs(ref usbTmcGuid, IntPtr.Zero, IntPtr.Zero, DiGetClassFlags.DIGCF_PRESENT | DiGetClassFlags.DIGCF_DEVICE_INTERFACE);
 			if (deviceInterfaceSet == INVALID_HANDLE_VALUE) {
-				throw new Exception("SetupDiGetClassDevs() function failed.");
+				throw new Win32Exception(Marshal.GetLastWin32Error());
 			}
 
 			// Iterate over the list:
@@ -465,7 +466,7 @@ namespace ScpiNet
 			);
 
 			if (DevHandle.IsInvalid) {
-				throw new Exception("Cannot open USB TMC device.");
+				throw new Win32Exception(Marshal.GetLastWin32Error());
 			}
 
 			// Bind device handle to the thread pool. This is necessary to make overlapped IO working:
@@ -521,7 +522,7 @@ namespace ScpiNet
 			Logger?.LogDebug("Reset pipe.");
 			bool ret = DeviceIoControl(DevHandle, IoctlUsbTmc.ResetPipe, pipeType, pipeType.Length, IntPtr.Zero, 0, out int _, IntPtr.Zero);
 			if (!ret) {
-				throw new Exception(string.Format("ResetPipe() failed. Last error: {0}.", Marshal.GetLastWin32Error()));
+				throw new Win32Exception(Marshal.GetLastWin32Error());
 			}
 		}
 
