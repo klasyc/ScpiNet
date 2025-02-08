@@ -37,6 +37,11 @@ namespace ScpiNet
 		public int Port { get; }
 
 		/// <summary>
+		/// Default buffer size for read operations.
+		/// </summary>
+		public int DefaultBufferSize { get; set; } = 1024;
+
+		/// <summary>
 		/// Default response timeout in milliseconds.
 		/// </summary>
 		public const int DefaultTimeout = 500;

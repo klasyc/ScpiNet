@@ -357,6 +357,12 @@ namespace ScpiNet
 		public int Timeout { get; set; } = 1500;
 
 		/// <summary>
+		/// Default buffer size for read operations. This value can be changed in order to tweak the performance
+		/// and communication stability. For example, my Keysight multimeter does not like when the buffer is larger than 128 bytes.
+		/// </summary>
+		public int DefaultBufferSize { get; set; } = 1024;
+
+		/// <summary>
 		/// Timestamp of the last command. Necessary to keep 1 ms gap between subsequent commands.
 		/// This pause is recommended by some manufacturers.
 		/// </summary>

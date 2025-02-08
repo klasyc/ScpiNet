@@ -21,6 +21,12 @@ namespace ScpiNet
 		string DevicePath { get; }
 
 		/// <summary>
+		/// Default buffer size for read operations, such as ReadString() and ReadBytes().
+		/// This value is configurable, because some devices are sensitive to the buffer size, although it should not matter at all.
+		/// </summary>
+		int DefaultBufferSize { get; set; }
+
+		/// <summary>
 		/// Opens the connection.
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token.</param>
