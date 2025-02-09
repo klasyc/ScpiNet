@@ -545,14 +545,13 @@ namespace ScpiNet
 		/// Checks the time elapsed since the last command. If it is shorter than requested minimal pause,
 		/// enforces a short delay not to flood the device by the commands.
 		/// </summary>
-		/// <param name="cancellationToken">Cancellation token.</param>
-		protected async Task EnforceCommPause(CancellationToken cancellationToken)
+		protected void EnforceCommPause()
 		{
 			int lastPause = (DateTime.Now - LastCmdTimeStamp).Milliseconds;
 			if (lastPause < CommPauseMs) {
-				await Task.Delay(CommPauseMs - lastPause + 1, cancellationToken);
+				Thread.Sleep(CommPauseMs - lastPause + 1);
 			}
-			await Task.Delay(10, cancellationToken);
+			Thread.Sleep(10);
 		}
 
 		/// <summary>
@@ -561,54 +560,53 @@ namespace ScpiNet
 		/// <param name="data">Array of data to write.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>Number of bytes written.</returns>
-		protected async Task WriteUsb(byte[] data, CancellationToken cancellationToken)
+		protected void WriteUsb(byte[] data, CancellationToken cancellationToken)
 		{
-			uint bytesWritten = await Task.Run(() => {
-				// This task will synchronize the asynchronous callback with async method:
-				TaskCompletionSource<(uint,uint)> writeTask = new();
+			// This task will synchronize the asynchronous callback with async method:
+			TaskCompletionSource<(uint,uint)> writeTask = new();
 
-				unsafe {
-					// Create overlapped structure pointer which will be used to process the asynchronous result:
-					Overlapped overlapped = new();
-					NativeOverlapped* nativeOverlapped = overlapped.Pack((uint errorCode, uint numBytes, NativeOverlapped* _) => writeTask.SetResult((errorCode, numBytes)), null);
+			unsafe {
+				// Create overlapped structure pointer which will be used to process the asynchronous result:
+				Overlapped overlapped = new();
+				NativeOverlapped* nativeOverlapped = overlapped.Pack((uint errorCode, uint numBytes, NativeOverlapped* _) => writeTask.SetResult((errorCode, numBytes)), null);
 
-					try {
-						// Write data:
-						if (WriteFile(DevHandle, data, data.Length, out uint written, nativeOverlapped)) {
-							// Synchronous exit - the write has been completed immediately:
-							return written;
+				try {
+					// Write data:
+					if (WriteFile(DevHandle, data, data.Length, out uint written, nativeOverlapped)) {
+						// Synchronous exit - the write has been completed immediately:
+						if (written != data.Length) {
+							throw new Exception(string.Format("WriteUsb() failed: {0} bytes requested, but {1} written.", data.Length, written));
 						}
-
-						// Function returned error. The only acceptable error is ERROR_IO_PENDING state:
-						int err = Marshal.GetLastWin32Error();
-						if (err != ERROR_IO_PENDING) {
-							throw CreateWin32Exception(err, "WriteFile() system call failed");
-						}
-
-						// Now wait for the asynchronous callback:
-						if (Task.WaitAny(new Task[] { writeTask.Task }, Timeout, cancellationToken) == -1) {
-							CancelIo(DevHandle);
-							throw new TimeoutException("WriteFile() system call timed out.");
-						}
-
-						// Now we should have our writeTask complete:
-						(uint errorCode, uint numBytes) = writeTask.Task.Result;
-						if (errorCode != 0) {
-							throw CreateWin32Exception((int)errorCode, "WriteFile() system call failed asynchronously");
-						}
-
-						return numBytes;
-					} finally {
-						// Ensure the unmanaged pointer has been successfully released:
-						Overlapped.Unpack(nativeOverlapped);
-						Overlapped.Free(nativeOverlapped);
+						return;
 					}
-				}
-			});
 
-			// Did we successfully write the whole message?
-			if (bytesWritten != data.Length) {
-				throw new Exception(string.Format("WriteUsb() failed: {0} bytes requested, but {1} written.", data.Length, bytesWritten));
+					// Function returned error. The only acceptable error is ERROR_IO_PENDING state:
+					int err = Marshal.GetLastWin32Error();
+					if (err != ERROR_IO_PENDING) {
+						throw CreateWin32Exception(err, "WriteFile() system call failed");
+					}
+
+					// Now wait for the asynchronous callback:
+					if (Task.WaitAny(new Task[] { writeTask.Task }, Timeout, cancellationToken) == -1) {
+						CancelIo(DevHandle);
+						throw new TimeoutException("WriteFile() system call timed out.");
+					}
+
+					// Now we should have our writeTask complete:
+					(uint errorCode, uint bytesWritten) = writeTask.Task.Result;
+					if (errorCode != 0) {
+						throw CreateWin32Exception((int)errorCode, "WriteFile() system call failed asynchronously");
+					}
+					
+					// Did we successfully write the whole message?
+					if (bytesWritten != data.Length) {
+						throw new Exception(string.Format("WriteUsb() failed: {0} bytes requested, but {1} written.", data.Length, bytesWritten));
+					}
+				} finally {
+					// Ensure the unmanaged pointer has been successfully released:
+					Overlapped.Unpack(nativeOverlapped);
+					Overlapped.Free(nativeOverlapped);
+				}
 			}
 		}
 
@@ -619,50 +617,48 @@ namespace ScpiNet
 		/// <param name="timeout">Timeout in milliseconds.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>Number of bytes actually read.</returns>
-		protected async Task<int> ReadUsb(byte[] buffer, int timeout, CancellationToken cancellationToken)
+		protected int ReadUsb(byte[] buffer, int timeout, CancellationToken cancellationToken)
 		{
-			return await Task.Run(() => {
-				// This task will synchronize the asynchronous callback with async method:
-				TaskCompletionSource<(uint,uint)> readTask = new();
+			// This task will synchronize the asynchronous callback with async method:
+			TaskCompletionSource<(uint,uint)> readTask = new();
 
-				unsafe {
-					// Create overlapped structure pointer which will be used to process the asynchronous result:
-					Overlapped overlapped = new();
-					NativeOverlapped* nativeOverlapped = overlapped.Pack((uint errorCode, uint bytesRead, NativeOverlapped* _) => readTask.SetResult((errorCode, bytesRead)), null);
+			unsafe {
+				// Create overlapped structure pointer which will be used to process the asynchronous result:
+				Overlapped overlapped = new();
+				NativeOverlapped* nativeOverlapped = overlapped.Pack((uint errorCode, uint bytesRead, NativeOverlapped* _) => readTask.SetResult((errorCode, bytesRead)), null);
 
-					try {
-						// Issue read request:
-						if (ReadFile(DevHandle, buffer, buffer.Length, out int read, nativeOverlapped)) {
-							// Synchronous exit - the function has been completed immediately:
-							return read;
-						}
-
-						// Function returned error. The only acceptable error is ERROR_IO_PENDING state:
-						int err = Marshal.GetLastWin32Error();
-						if (err != ERROR_IO_PENDING) {
-							throw CreateWin32Exception(err, "ReadFile() system call failed");
-						}
-
-						// Now wait for the asynchronous callback:
-						if (Task.WaitAny(new Task[] { readTask.Task }, timeout, cancellationToken) == -1) {
-							CancelIo(DevHandle);
-							throw new TimeoutException("ReadFile() system call timed out.");
-						}
-
-						// Now we should have our writeTask complete:
-						(uint errorCode, uint readBytes) = readTask.Task.Result;
-						if (errorCode != 0) {
-							throw CreateWin32Exception((int)errorCode, "ReadFile() system call failed asynchronously");
-						}
-
-						return (int)readBytes;
-					} finally {
-						// Ensure the unmanaged pointer has been successfully released:
-						Overlapped.Unpack(nativeOverlapped);
-						Overlapped.Free(nativeOverlapped);
+				try {
+					// Issue read request:
+					if (ReadFile(DevHandle, buffer, buffer.Length, out int read, nativeOverlapped)) {
+						// Synchronous exit - the function has been completed immediately:
+						return read;
 					}
+
+					// Function returned error. The only acceptable error is ERROR_IO_PENDING state:
+					int err = Marshal.GetLastWin32Error();
+					if (err != ERROR_IO_PENDING) {
+						throw CreateWin32Exception(err, "ReadFile() system call failed");
+					}
+
+					// Now wait for the asynchronous callback:
+					if (Task.WaitAny(new Task[] { readTask.Task }, timeout, cancellationToken) == -1) {
+						CancelIo(DevHandle);
+						throw new TimeoutException("ReadFile() system call timed out.");
+					}
+
+					// Now we should have our writeTask complete:
+					(uint errorCode, uint readBytes) = readTask.Task.Result;
+					if (errorCode != 0) {
+						throw CreateWin32Exception((int)errorCode, "ReadFile() system call failed asynchronously");
+					}
+
+					return (int)readBytes;
+				} finally {
+					// Ensure the unmanaged pointer has been successfully released:
+					Overlapped.Unpack(nativeOverlapped);
+					Overlapped.Free(nativeOverlapped);
 				}
-			});
+			}
 		}
 
 		/// <summary>
@@ -734,21 +730,24 @@ namespace ScpiNet
 		/// <param name="data">Array of data to write.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>Number of bytes written.</returns>
-		public async Task Write(byte[] data, CancellationToken cancellationToken = default)
+		public Task Write(byte[] data, CancellationToken cancellationToken = default)
 		{
 			if (!IsOpen) {
 				throw new InvalidOperationException("Write failed: The TMC device is not open.");
 			}
 
-			// Wait 1 ms between subsequent commands:
-			await EnforceCommPause(cancellationToken);
+			return Task.Run(() =>
+			{
+				// Wait 1 ms between subsequent commands:
+				EnforceCommPause();
 
-			// Send the request:
-			byte[] message = CreateTmcRequest(UsbTmcMsgId.DevDepMsgOut, true, data);
-			await WriteUsb(message, cancellationToken);
+				// Send the request:
+				byte[] message = CreateTmcRequest(UsbTmcMsgId.DevDepMsgOut, true, data);
+				WriteUsb(message, cancellationToken);
 
-			// Remember the last command timestamp:
-			LastCmdTimeStamp = DateTime.Now;
+				// Remember the last command timestamp:
+				LastCmdTimeStamp = DateTime.Now;
+			});
 		}
 
 		/// <summary>
@@ -759,10 +758,8 @@ namespace ScpiNet
 		/// <param name="specialTimeout">Special timeout (milliseconds). If zero (default value), uses Timeout property value for timeout.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>Array of bytes actually read and bool which indicates end-of-file (i.e. no other data is currently waiting to be read).</returns>
-		public async Task<ReadResult> Read(byte[] buffer, int readLength = -1, int specialTimeout = 0, CancellationToken cancellationToken = default)
+		public Task<ReadResult> Read(byte[] buffer, int readLength = -1, int specialTimeout = 0, CancellationToken cancellationToken = default)
 		{
-			int headerSize = Marshal.SizeOf(typeof(UsbTmcHeader));
-
 			if (!IsOpen) {
 				throw new InvalidOperationException("Read failed: The TMC device is not open.");
 			}
@@ -774,59 +771,63 @@ namespace ScpiNet
 				throw new ArgumentOutOfRangeException(nameof(readLength), "Read length cannot be greater than the buffer size.");
 			}
 
-			// Enforce 1 ms pause in the communication between two messages:
-			await EnforceCommPause(cancellationToken);
+			return Task.Run(() =>
+			{
+				// Enforce 1 ms pause in the communication between two messages:
+				EnforceCommPause();
 
-			// Write reading request to the device:
-			await WriteUsb(CreateTmcRequest(UsbTmcMsgId.DevDepMsgIn, false, null, (uint)readLength), cancellationToken);
+				// Write reading request to the device:
+				WriteUsb(CreateTmcRequest(UsbTmcMsgId.DevDepMsgIn, false, null, (uint)readLength), cancellationToken);
 
-			// Receive the answer:
-			byte[] receptionBuffer = new byte[readLength + headerSize];
-			int readTimeout = specialTimeout > 0 ? specialTimeout : Timeout;
-			int receivedBytesCount = await ReadUsb(receptionBuffer, readTimeout, cancellationToken);
+				// Receive the answer:
+				int headerSize = Marshal.SizeOf(typeof(UsbTmcHeader));
+				byte[] receptionBuffer = new byte[readLength + headerSize];
+				int readTimeout = specialTimeout > 0 ? specialTimeout : Timeout;
+				int receivedBytesCount = ReadUsb(receptionBuffer, readTimeout, cancellationToken);
 
-			// Remember the last command timestamp:
-			LastCmdTimeStamp = DateTime.Now;
+				// Remember the last command timestamp:
+				LastCmdTimeStamp = DateTime.Now;
 
-			// Try to parse the message header:
-			UsbTmcHeader header = default;
-			if (receivedBytesCount < headerSize) {
-				throw new Exception("Received data is shorter than TMC header.");
-			}
+				// Try to parse the message header:
+				UsbTmcHeader header = default;
+				if (receivedBytesCount < headerSize) {
+					throw new Exception("Received data is shorter than TMC header.");
+				}
 
-			// Now convert data to the UsbTmcHeader structure:
-			IntPtr headerPtr = IntPtr.Zero;
-			try {
-				headerPtr = Marshal.AllocHGlobal(headerSize);
-				Marshal.Copy(receptionBuffer, 0, headerPtr, headerSize);
-				header = Marshal.PtrToStructure<UsbTmcHeader>(headerPtr);
-			} finally {
-				Marshal.FreeHGlobal(headerPtr);
-			}
+				// Now convert data to the UsbTmcHeader structure:
+				IntPtr headerPtr = IntPtr.Zero;
+				try {
+					headerPtr = Marshal.AllocHGlobal(headerSize);
+					Marshal.Copy(receptionBuffer, 0, headerPtr, headerSize);
+					header = Marshal.PtrToStructure<UsbTmcHeader>(headerPtr);
+				} finally {
+					Marshal.FreeHGlobal(headerPtr);
+				}
 
-			// Check Tag field inversion:
-			if (TagCheckEnabled && header.bTag != (byte)~header.bTagInverse) {
-				throw new Exception("Received data is not valid. The Tag field is not inverted properly.");
-			}
-			// The Tag field should also match current version of our Tag property:
-			if (TagCheckEnabled && header.bTag != Tag) {
-				throw new Exception("Received data is not valid, because the Tag field contains unexpected value.");
-			}
+				// Check Tag field inversion:
+				if (TagCheckEnabled && header.bTag != (byte)~header.bTagInverse) {
+					throw new Exception("Received data is not valid. The Tag field is not inverted properly.");
+				}
+				// The Tag field should also match current version of our Tag property:
+				if (TagCheckEnabled && header.bTag != Tag) {
+					throw new Exception("Received data is not valid, because the Tag field contains unexpected value.");
+				}
 
-			// Do we have all data?
-			int receiveLength = (int)header.TransferSize;
-			if (receivedBytesCount < headerSize + receiveLength) {
-				throw new Exception("Received data is too short. The data part is shorter than TransferSize field claims.");
-			}
+				// Do we have all data?
+				int receiveLength = (int)header.TransferSize;
+				if (receivedBytesCount < headerSize + receiveLength) {
+					throw new Exception("Received data is too short. The data part is shorter than TransferSize field claims.");
+				}
 
-			// Copy message content to the output array:
-			Array.Copy(receptionBuffer, headerSize, buffer, 0, receiveLength);
+				// Copy message content to the output array:
+				Array.Copy(receptionBuffer, headerSize, buffer, 0, receiveLength);
 
-			// Check for EOF flag:
-			bool eof = header.bmTransferAttributes == 0x01;
+				// Check for EOF flag:
+				bool eof = header.bmTransferAttributes == 0x01;
 
-			// Create the reading result:
-			return new ReadResult(receiveLength, eof, buffer);
+				// Create the reading result:
+				return new ReadResult(receiveLength, eof, buffer);
+			});
 		}
 
 		/// <summary>
