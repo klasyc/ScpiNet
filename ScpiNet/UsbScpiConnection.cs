@@ -363,6 +363,14 @@ namespace ScpiNet
 		public int DefaultBufferSize { get; set; } = 1024;
 
 		/// <summary>
+		/// This option allows to enable or disable checking of the Tag field in the header of TMC response.
+		/// The device should send the same Tag value as the one sent in the request + its inverse, but some
+		/// devices do not follow this rule and leave the Tag field zero. In such case, the TagCheckEnabled
+		/// can be set to false to make these devices working.
+		/// </summary>
+		public bool TagCheckEnabled { get; set; } = true;
+
+		/// <summary>
 		/// Timestamp of the last command. Necessary to keep 1 ms gap between subsequent commands.
 		/// This pause is recommended by some manufacturers.
 		/// </summary>
@@ -795,16 +803,14 @@ namespace ScpiNet
 				Marshal.FreeHGlobal(headerPtr);
 			}
 
-			// Unfortunately Keysight multimeter leaves Tag fields always zero in the response, therefore this check cannot be used:
-			// Check if tag fields match:
-			//if (header.bTag != ~header.bTagInverse) {
-			//	throw new Exception("Received data is not valid. The tag field is not inverted properly.");
-			//}
-
-			//// The tag field should also match current version of our Tag property:
-			//if (header.bTag != Tag) {
-			//	throw new Exception("Received data is not valid, the tag field contains unexpected value.");
-			//}
+			// Check Tag field inversion:
+			if (TagCheckEnabled && header.bTag != (byte)~header.bTagInverse) {
+				throw new Exception("Received data is not valid. The Tag field is not inverted properly.");
+			}
+			// The Tag field should also match current version of our Tag property:
+			if (TagCheckEnabled && header.bTag != Tag) {
+				throw new Exception("Received data is not valid, because the Tag field contains unexpected value.");
+			}
 
 			// Do we have all data?
 			int receiveLength = (int)header.TransferSize;
