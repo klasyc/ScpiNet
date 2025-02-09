@@ -390,7 +390,7 @@ namespace ScpiNet
 			// Create a list of devices in USBTMC class:
 			IntPtr deviceInterfaceSet = SetupDiGetClassDevs(ref usbTmcGuid, IntPtr.Zero, IntPtr.Zero, DiGetClassFlags.DIGCF_PRESENT | DiGetClassFlags.DIGCF_DEVICE_INTERFACE);
 			if (deviceInterfaceSet == INVALID_HANDLE_VALUE) {
-				throw new Win32Exception(Marshal.GetLastWin32Error());
+				throw CreateWin32Exception(Marshal.GetLastWin32Error(), "SetupDiGetClassDevs function failed");
 			}
 
 			// Iterate over the list:
@@ -472,7 +472,7 @@ namespace ScpiNet
 			);
 
 			if (DevHandle.IsInvalid) {
-				throw new Win32Exception(Marshal.GetLastWin32Error());
+				throw CreateWin32Exception(Marshal.GetLastWin32Error(), "Failed to open USB TMC device");
 			}
 
 			// Bind device handle to the thread pool. This is necessary to make overlapped IO working:
@@ -528,7 +528,7 @@ namespace ScpiNet
 			Logger?.LogDebug("Reset pipe.");
 			bool ret = DeviceIoControl(DevHandle, IoctlUsbTmc.ResetPipe, pipeType, pipeType.Length, IntPtr.Zero, 0, out int _, IntPtr.Zero);
 			if (!ret) {
-				throw new Win32Exception(Marshal.GetLastWin32Error());
+				throw CreateWin32Exception(Marshal.GetLastWin32Error(), "DeviceIoControl() function failed");
 			}
 		}
 
@@ -573,19 +573,19 @@ namespace ScpiNet
 						// Function returned error. The only acceptable error is ERROR_IO_PENDING state:
 						int err = Marshal.GetLastWin32Error();
 						if (err != ERROR_IO_PENDING) {
-							throw new Exception(string.Format("WriteFile() system call returned error {0}.", err));
+							throw CreateWin32Exception(err, "WriteFile() system call failed");
 						}
 
 						// Now wait for the asynchronous callback:
 						if (Task.WaitAny(new Task[] { writeTask.Task }, Timeout, cancellationToken) == -1) {
 							CancelIo(DevHandle);
-							throw new Exception("WriteFile() system call timed out.");
+							throw new TimeoutException("WriteFile() system call timed out.");
 						}
 
 						// Now we should have our writeTask complete:
 						(uint errorCode, uint numBytes) = writeTask.Task.Result;
 						if (errorCode != 0) {
-							throw new Exception(string.Format("WriteFile() system call failed asynchronously with error code {0}.", errorCode));
+							throw CreateWin32Exception((int)errorCode, "WriteFile() system call failed asynchronously");
 						}
 
 						return numBytes;
@@ -631,19 +631,19 @@ namespace ScpiNet
 						// Function returned error. The only acceptable error is ERROR_IO_PENDING state:
 						int err = Marshal.GetLastWin32Error();
 						if (err != ERROR_IO_PENDING) {
-							throw new Exception(string.Format("ReadFile() system call returned error {0}.", err));
+							throw CreateWin32Exception(err, "ReadFile() system call failed");
 						}
 
 						// Now wait for the asynchronous callback:
 						if (Task.WaitAny(new Task[] { readTask.Task }, timeout, cancellationToken) == -1) {
 							CancelIo(DevHandle);
-							throw new Exception("ReadFile() system call timed out.");
+							throw new TimeoutException("ReadFile() system call timed out.");
 						}
 
 						// Now we should have our writeTask complete:
 						(uint errorCode, uint readBytes) = readTask.Task.Result;
 						if (errorCode != 0) {
-							throw new Exception(string.Format("ReadFile() system call failed asynchronously with error code {0}.", errorCode));
+							throw CreateWin32Exception((int)errorCode, "ReadFile() system call failed asynchronously");
 						}
 
 						return (int)readBytes;
@@ -822,6 +822,18 @@ namespace ScpiNet
 
 			// Create the reading result:
 			return new ReadResult(receiveLength, eof, buffer);
+		}
+
+		/// <summary>
+		/// Creates a Win32Exception containing the system error message prefixed by custom string.
+		/// </summary>
+		/// <param name="code">Error code retrieved from GetLastError() function.</param>
+		/// <param name="messagePrefix">Custom message prefix.</param>
+		/// <returns>Win32Exception instance.</returns>
+		private static Win32Exception CreateWin32Exception(int code, string messagePrefix)
+		{
+			string systemError = new Win32Exception(code).Message;
+			return new Win32Exception(code, string.Format("{0}: {1}", messagePrefix, systemError));
 		}
 
 		/// <summary>
