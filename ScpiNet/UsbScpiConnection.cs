@@ -368,7 +368,7 @@ namespace ScpiNet
 		/// devices do not follow this rule and leave the Tag field zero. In such case, the TagCheckEnabled
 		/// can be set to false to make these devices working.
 		/// </summary>
-		public bool TagCheckEnabled { get; set; } = true;
+		public bool TagCheckEnabled { get; set; }
 
 		/// <summary>
 		/// Timestamp of the last command. Necessary to keep 1 ms gap between subsequent commands.
@@ -455,6 +455,7 @@ namespace ScpiNet
 			DevicePath = devPath;
 			DevHandle = null;
 			Tag = 1;
+			TagCheckEnabled = true;
 			Logger = logger;
 		}
 
