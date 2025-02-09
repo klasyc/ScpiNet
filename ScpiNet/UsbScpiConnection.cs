@@ -702,14 +702,13 @@ namespace ScpiNet
 			byte[] buffer = new byte[bufferLength];
 
 			// Copy the header to the beginning of the array:
-			GCHandle handle = default;
+			IntPtr headerPtr = IntPtr.Zero;
 			try {
-				handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
-				Marshal.StructureToPtr<UsbTmcHeader>(header, handle.AddrOfPinnedObject(), false);
+				headerPtr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(UsbTmcHeader)));
+				Marshal.StructureToPtr(header, headerPtr, true);
+				Marshal.Copy(headerPtr, buffer, 0, Marshal.SizeOf(typeof(UsbTmcHeader)));
 			} finally {
-				if (handle.IsAllocated) {
-					handle.Free();
-				}
+				Marshal.FreeHGlobal(headerPtr);
 			}
 
 			// Add the write data after the header:
@@ -787,14 +786,13 @@ namespace ScpiNet
 			}
 
 			// Now convert data to the UsbTmcHeader structure:
-			GCHandle handle = default;
+			IntPtr headerPtr = IntPtr.Zero;
 			try {
-				handle = GCHandle.Alloc(receptionBuffer, GCHandleType.Pinned);
-				header = (UsbTmcHeader)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(UsbTmcHeader));
+				headerPtr = Marshal.AllocHGlobal(headerSize);
+				Marshal.Copy(receptionBuffer, 0, headerPtr, headerSize);
+				header = Marshal.PtrToStructure<UsbTmcHeader>(headerPtr);
 			} finally {
-				if (handle.IsAllocated) {
-					handle.Free();
-				}
+				Marshal.FreeHGlobal(headerPtr);
 			}
 
 			// Unfortunately Keysight multimeter leaves Tag fields always zero in the response, therefore this check cannot be used:
