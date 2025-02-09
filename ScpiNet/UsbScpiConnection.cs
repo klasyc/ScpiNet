@@ -11,7 +11,7 @@ namespace ScpiNet
 {
 	/// <summary>
 	/// The UsbConnection class represents a USB TMC connection to a TMC device.
-	/// This class uses directly Windows API as its backend.
+	/// This class uses directly Windows API as its back-end.
 	/// </summary>
 	public class UsbScpiConnection : IScpiConnection
 	{
@@ -315,7 +315,7 @@ namespace ScpiNet
 
 		/// <summary>
 		/// Length of device path buffer in SP_DEVICE_INTERFACE_DETAIL_DATA structure. We use fixed buffer in order to make
-		/// marshalling easier, so the buffer should be long enough for all device paths.
+		/// marshaling easier, so the buffer should be long enough for all device paths.
 		/// </summary>
 		private const int SP_DEVICE_INTERFACE_DETAIL_DATA_BUFFER_SIZE = 256;
 
@@ -374,7 +374,7 @@ namespace ScpiNet
 		/// Timestamp of the last command. Necessary to keep 1 ms gap between subsequent commands.
 		/// This pause is recommended by some manufacturers.
 		/// </summary>
-		protected DateTime LastCmdTimestamp;
+		protected DateTime LastCmdTimeStamp;
 
 		/// <summary>
 		/// True if the device is open.
@@ -547,7 +547,7 @@ namespace ScpiNet
 		/// <param name="cancellationToken">Cancellation token.</param>
 		protected async Task EnforceCommPause(CancellationToken cancellationToken)
 		{
-			int lastPause = (DateTime.Now - LastCmdTimestamp).Milliseconds;
+			int lastPause = (DateTime.Now - LastCmdTimeStamp).Milliseconds;
 			if (lastPause < CommPauseMs) {
 				await Task.Delay(CommPauseMs - lastPause + 1, cancellationToken);
 			}
@@ -747,7 +747,7 @@ namespace ScpiNet
 			await WriteUsb(message, cancellationToken);
 
 			// Remember the last command timestamp:
-			LastCmdTimestamp = DateTime.Now;
+			LastCmdTimeStamp = DateTime.Now;
 		}
 
 		/// <summary>
@@ -757,7 +757,7 @@ namespace ScpiNet
 		/// <param name="readLength">Maximal number of bytes to read.</param>
 		/// <param name="specialTimeout">Special timeout (milliseconds). If zero (default value), uses Timeout property value for timeout.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
-		/// <returns>Array of bytes actually read and bool which indicates end-of-file (ie. no other data is currently waiting to be read).</returns>
+		/// <returns>Array of bytes actually read and bool which indicates end-of-file (i.e. no other data is currently waiting to be read).</returns>
 		public async Task<ReadResult> Read(byte[] buffer, int readLength = -1, int specialTimeout = 0, CancellationToken cancellationToken = default)
 		{
 			int headerSize = Marshal.SizeOf(typeof(UsbTmcHeader));
@@ -785,7 +785,7 @@ namespace ScpiNet
 			int receivedBytesCount = await ReadUsb(receptionBuffer, readTimeout, cancellationToken);
 
 			// Remember the last command timestamp:
-			LastCmdTimestamp = DateTime.Now;
+			LastCmdTimeStamp = DateTime.Now;
 
 			// Try to parse the message header:
 			UsbTmcHeader header = default;
