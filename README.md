@@ -5,7 +5,7 @@ an oscilloscope or digital multimeter from your computer, you probably came acro
 [SCPI commands](https://en.wikipedia.org/wiki/Standard_Commands_for_Programmable_Instruments)
 which allow to control such devices.
 
-Although this standard looks like a simple text communication, the real use is not so easy because these
+Although this standard looks like a simple text communication, the real use is not so easy, because these
 text commands have to be wrapped into a lower-level communication protocol like TCP/IP or USBTMC which the device
 understands. The most of manufacturers provide their own libraries like Tektronix's
 [TekVISA](https://www.tek.com/en/support/software/driver/tekvisa-connectivity-software-v411)
@@ -94,7 +94,7 @@ methods such as `Query()`. Please see the `SampleApp` directory for more details
 
 # Instrument driver considerations
 
-This library focuses only the the transmission of the SCPI commands and responses. It does not provide
+This library focuses only on the transmission of the SCPI commands and responses. It does not provide
 any higher-level functionality like instrument drivers. The reason is that implementing of such drivers
 is a very complex task:
 
@@ -103,5 +103,38 @@ is a very complex task:
   to create my private drivers which are tailored to the needs of my applications only.
 - I don't know why, but the SCPI devices I encountered offered almost no means of reflection: You cannot
   ask the oscilloscope how many channels it has or what time bases are available. This means that you
-  have to hard-code all these things into your driver. Therefore it is almost impossible to crete a driver
+  have to hard-code all these things into your driver. Therefore it is almost impossible to create a driver
   without physically having the device in your hands.
+- Some high-level functions are already provided by the VISA suites provided by the device manufacturers.
+  I don't want to compete with them.
+
+
+# Troubleshooting
+
+- If you receive communication timeout, it usually means that the device did not understand to your command
+  and ignored it.
+- Some devices are slow and need some time to process the command. Therefore, the library automatically ensures,
+  there is at least 1 ms gap between two subsequent requests. Currently, this delay is not configurable, because
+  i found it working well with all devices I tested. If you have a device which needs different delay, please let me know.
+- USB TMC protocol uses a field *Tag* in the header of the request and response in order to check that the response
+  corresponds to the request. Some devices ignore this and return zero *Tag* in the response. In order to work around
+  this problem, the `UsbScpiConnection` class provides a property `TagCheckEnabled` which is `true` by default.
+  If you receive tag mismatch errors, you can try to set this property to `false`.
+- Some devices are sensitive to the size of reading buffer, even though this should not affect the communication.
+  If I passed too large buffer to these devices, the request simply timed out. Therefore, the `IScpiConnection`
+  interface contains a property called `DefaultBufferSize` which allows to fine tune the buffer size. The default
+  value is only 128 bytes, which is safely small. You can increase it in your device driver/application if you
+  want to read larger responses in a single step.
+
+
+# Support and contributions
+
+Currently, I am the only developer of this library and I am not able to test it with all possible devices. Also,
+I am doing this project in my free time, and I am quite busy. I will try solve all issues and answer all questions
+as quickly as possible, but please be patient.
+
+If you are going to create an issue, please provide as much information as possible. If you can provide a code
+snippet which reproduces the problem, it would be perfect. Some issues are hard to reproduce.
+
+If you fixed a bug or implemented a new feature, please consider creating a pull request.  It will help this project
+to grow.
