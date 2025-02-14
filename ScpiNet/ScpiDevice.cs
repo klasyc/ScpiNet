@@ -24,6 +24,14 @@ namespace ScpiNet
 		protected ILogger<ScpiDevice> Logger { get; }
 
 		/// <summary>
+		/// This property controls the built-in string response parser. If true, the parser expects that the response starts
+		/// with the initial header, which is the command without the trailing question mark, and strips it from the response.
+		/// First, decide if you want to receive the headers in the response, then configure your device in the Open() method,
+		/// and finally, set this property to match your decision. The default value is true.
+		/// </summary>
+		protected bool StripHeaders { get; set; }
+
+		/// <summary>
 		/// Number style used to parse SCPI numbers in scientific format.
 		/// </summary>
 		public const NumberStyles NumberStyle = NumberStyles.Float;
@@ -54,12 +62,22 @@ namespace ScpiNet
 			Connection = connection;
 			InstrumentId = deviceId;
 			Logger = logger;
+			StripHeaders = true;
 		}
 
 		/// <summary>
 		/// Device identifier retrieved by *IDN? function call.
 		/// </summary>
 		public string InstrumentId { get; }
+
+		/// <summary>
+		/// Asynchronously opens the device. This basic implementation opens the connection only,
+		/// but the derived classes can perform additional operations, such as initial device configuration.
+		/// </summary>
+		public virtual Task Open()
+		{
+			return Connection.Open();
+		}
 
 		/// <summary>
 		/// Asynchronously disposes the device. In contrast to the Dispose() method,
@@ -142,11 +160,10 @@ namespace ScpiNet
 		/// Performs a query to the device. First a command is sent and then a response is received.
 		/// </summary>
 		/// <param name="command">Command to send. New line is automatically added.</param>
-		/// <param name="stripHeader">If true, the response header will be automatically stripped from the response.
 		/// Use only when you configured the instrument to include the headers in the response.</param>
 		/// <param name="cancellationToken">Cancellation token. Optional.</param>
 		/// <returns>Command response.</returns>
-		protected async Task<string> Query(string command, bool stripHeader = true, CancellationToken cancellationToken = default)
+		protected async Task<string> Query(string command, CancellationToken cancellationToken = default)
 		{
 			// Send command to the instrument:
 			Logger?.LogDebug($"Query: {command}");
@@ -156,7 +173,7 @@ namespace ScpiNet
 			string response = await Connection.ReadString(0, cancellationToken);
 
 			// If you turned on the response headers, you probably want to strip them from the response:
-			if (stripHeader) {
+			if (StripHeaders) {
 				response = StripHeader(response, command);
 			}
 
@@ -235,7 +252,7 @@ namespace ScpiNet
 
 				// Wait for the response with extended timeout:
 				string responseWithHeader = await Connection.ReadString(ExtendedPollingCommandTimeoutMs, cancellationToken);
-				string strippedResponse = StripHeader(responseWithHeader, command);
+				string strippedResponse = StripHeaders ? StripHeader(responseWithHeader, command) : responseWithHeader;
 
 				// Check we have the expected response:
 				if (strippedResponse == response) {
