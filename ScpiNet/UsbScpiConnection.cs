@@ -3,7 +3,9 @@ using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,19 +29,40 @@ namespace ScpiNet
 		/// Reads data from the specified file or input/output (I/O) device. Reads occur at the position specified by the file pointer if supported by the device.
 		/// </summary>
 		[DllImport("kernel32", SetLastError = true)]
-		private static extern unsafe bool ReadFile(SafeFileHandle handle, byte[] bytes, int numBytesToRead, out int numBytesRead, NativeOverlapped* overlapped);
+		private static extern bool ReadFile(SafeFileHandle handle, byte[] bytes, int numBytesToRead, out int numBytesRead, ref NativeOverlapped overlapped);
 
 		/// <summary>
 		/// Writes data to the specified file or input/output (I/O) device.
 		/// </summary>
 		[DllImport("kernel32.dll", SetLastError = true)]
-		private static extern unsafe bool WriteFile(SafeFileHandle handle, byte[] bytes, int numBytesToWrite, out uint numBytesWritten, NativeOverlapped* overlapped);
+		private static extern bool WriteFile(SafeFileHandle handle, byte[] bytes, int numBytesToWrite, out uint numBytesWritten, ref NativeOverlapped overlapped);
 
 		/// <summary>
 		/// Sends a control code directly to a specified device driver, causing the corresponding device to perform the corresponding operation.
 		/// </summary>
 		[DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
 		private static extern bool DeviceIoControl(SafeFileHandle hDevice, IoctlUsbTmc dwIoControlCode, byte[] lpInBuffer, int nInBufferSize, IntPtr lpOutBuffer, int nOutBufferSize, out int lpBytesReturned, IntPtr lpOverlapped);
+
+		/// <summary>
+		/// Creates or opens a named or unnamed event object.
+		/// </summary>
+		[DllImport("kernel32.dll")]
+		static extern IntPtr CreateEvent(IntPtr lpEventAttributes, bool bManualReset, bool bInitialState, string lpName);
+
+		/// <summary>
+		/// Waits until the specified object is in the signaled state or the time-out interval elapses.
+		/// </summary>
+		[DllImport("kernel32.dll", SetLastError = true)]
+		static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
+
+		/// <summary>
+		/// Closes an open object handle.
+		/// </summary>
+		[DllImport("kernel32.dll", SetLastError = true)]
+		[ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+		[SuppressUnmanagedCodeSecurity]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		static extern bool CloseHandle(IntPtr hObject);
 
 		/// <summary>
 		/// Cancels running IO operation.
@@ -89,73 +112,8 @@ namespace ScpiNet
 		enum EFileAccess : uint
 		{
 			None = 0,
-			AccessSystemSecurity = 0x1000000,
-			MaximumAllowed = 0x2000000,
-
-			Delete = 0x10000,
-			ReadControl = 0x20000,
-			WriteDAC = 0x40000,
-			WriteOwner = 0x80000,
-			Synchronize = 0x100000,
-
-			StandardRightsRequired = Delete | ReadControl | WriteDAC | WriteOwner,
-			StandardRightsRead = ReadControl,
-			StandardRightsWrite = ReadControl,
-			StandardRightsExecute = ReadControl,
-			StandardRightsAll = StandardRightsRequired | Synchronize,
-
-			FILE_READ_DATA = 0x0001,
-			FILE_LIST_DIRECTORY = FILE_READ_DATA,
-			FILE_WRITE_DATA = 0x0002,
-			FILE_ADD_FILE = FILE_WRITE_DATA,
-			FILE_APPEND_DATA = 0x0004,
-			FILE_ADD_SUBDIRECTORY = FILE_APPEND_DATA,
-			FILE_CREATE_PIPE_INSTANCE = FILE_APPEND_DATA,
-			FILE_READ_EA = 0x0008,
-			FILE_WRITE_EA = 0x0010,
-			FILE_EXECUTE = 0x0020,
-			FILE_TRAVERSE = FILE_EXECUTE,
-			FILE_DELETE_CHILD = 0x0040,
-			FILE_READ_ATTRIBUTES = 0x0080,
-			FILE_WRITE_ATTRIBUTES = 0x0100,
-
 			GenericRead = 0x80000000,
 			GenericWrite = 0x40000000,
-			GenericExecute = 0x20000000,
-			GenericAll = 0x10000000,
-
-			FILE_ALL_ACCESS =
-				StandardRightsAll |
-				FILE_LIST_DIRECTORY |
-				FILE_ADD_FILE |
-				FILE_ADD_SUBDIRECTORY |
-				FILE_READ_EA |
-				FILE_WRITE_EA |
-				FILE_EXECUTE |
-				FILE_DELETE_CHILD |
-				FILE_READ_ATTRIBUTES |
-				FILE_WRITE_ATTRIBUTES,
-
-			FILE_GENERIC_READ =
-				StandardRightsRead |
-				FILE_READ_DATA |
-				FILE_READ_ATTRIBUTES |
-				FILE_READ_EA |
-				Synchronize,
-
-			FILE_GENERIC_WRITE =
-				StandardRightsWrite |
-				FILE_WRITE_DATA |
-				FILE_WRITE_ATTRIBUTES |
-				FILE_WRITE_EA |
-				FILE_APPEND_DATA |
-				Synchronize,
-
-			FILE_GENERIC_EXECUTE =
-				StandardRightsExecute |
-				FILE_READ_ATTRIBUTES |
-				FILE_EXECUTE |
-				Synchronize
 		}
 
 		/// <summary>
@@ -189,37 +147,23 @@ namespace ScpiNet
 		public enum EFileAttributes : uint
 		{
 			None = 0,
-			Readonly = 0x00000001,
-			Hidden = 0x00000002,
-			System = 0x00000004,
-			Directory = 0x00000010,
-			Archive = 0x00000020,
-			Device = 0x00000040,
-			Normal = 0x00000080,
-			Temporary = 0x00000100,
-			SparseFile = 0x00000200,
-			ReparsePoint = 0x00000400,
-			Compressed = 0x00000800,
-			Offline = 0x00001000,
-			NotContentIndexed = 0x00002000,
-			Encrypted = 0x00004000,
-			Write_Through = 0x80000000,
 			Overlapped = 0x40000000,
-			NoBuffering = 0x20000000,
-			RandomAccess = 0x10000000,
-			SequentialScan = 0x08000000,
-			DeleteOnClose = 0x04000000,
-			BackupSemantics = 0x02000000,
-			PosixSemantics = 0x01000000,
-			OpenReparsePoint = 0x00200000,
-			OpenNoRecall = 0x00100000,
-			FirstPipeInstance = 0x00080000
 		}
 
 		/// <summary>
 		/// ReadFile/WriteFile error code returned when the operation is handled asynchronously.
 		/// </summary>
 		private const uint ERROR_IO_PENDING = 997;
+
+		/// <summary>
+		/// The time-out interval elapsed, and the object's state is nonsignaled.
+		/// </summary>
+		private const uint WAIT_TIMEOUT = 0x00000102;
+
+		/// <summary>
+		/// The state of the specified object is signaled. 
+		/// </summary>
+		private const uint WAIT_OBJECT_0 = 0x00000000;
 
 		/// <summary>
 		/// DeviceIoControl flags for TMC devices according to the TMC specification.
@@ -555,6 +499,39 @@ namespace ScpiNet
 		}
 
 		/// <summary>
+		/// Asynchronously waits for overlapped operation.
+		/// </summary>
+		/// <param name="overlapped">Overlapped structure related to the operation.</param>
+		/// <param name="timeout">Timeout in milliseconds.</param>
+		/// <param name="cancellationToken">Cancellation token.</param>
+		/// <returns>Number of bytes read/written.</returns>
+		protected int WaitForAsyncOperation(ref NativeOverlapped overlapped, int timeout, CancellationToken cancellationToken)
+		{
+			try {
+				for (int t = timeout; t > 0; t -= 500)
+				{
+					switch (WaitForSingleObject(overlapped.EventHandle, 500))
+					{
+						case WAIT_OBJECT_0:
+							return (int)overlapped.InternalHigh;
+
+						case WAIT_TIMEOUT:
+							cancellationToken.ThrowIfCancellationRequested();
+							break;
+
+						default:
+							throw CreateWin32Exception(Marshal.GetLastWin32Error(), "WaitForSingleObject() failed");
+					}
+				}
+
+				throw new TimeoutException("USB I/O operation timed out.");
+			} catch {
+				CancelIo(DevHandle);
+				throw;
+			}
+		}
+
+		/// <summary>
 		/// Asynchronously writes data to the USB device.
 		/// </summary>
 		/// <param name="data">Array of data to write.</param>
@@ -562,51 +539,33 @@ namespace ScpiNet
 		/// <returns>Number of bytes written.</returns>
 		protected void WriteUsb(byte[] data, CancellationToken cancellationToken)
 		{
-			// This task will synchronize the asynchronous callback with async method:
-			TaskCompletionSource<(uint,uint)> writeTask = new();
+			NativeOverlapped overlapped = new();
 
-			unsafe {
-				// Create overlapped structure pointer which will be used to process the asynchronous result:
-				Overlapped overlapped = new();
-				NativeOverlapped* nativeOverlapped = overlapped.Pack((uint errorCode, uint numBytes, NativeOverlapped* _) => writeTask.SetResult((errorCode, numBytes)), null);
+			try {
+				overlapped.EventHandle = CreateEvent(IntPtr.Zero, false, false, null);
 
-				try {
-					// Write data:
-					if (WriteFile(DevHandle, data, data.Length, out uint written, nativeOverlapped)) {
-						// Synchronous exit - the write has been completed immediately:
-						if (written != data.Length) {
-							throw new Exception(string.Format("WriteUsb() failed: {0} bytes requested, but {1} written.", data.Length, written));
-						}
-						return;
+				// Make asynchronous write request. It works better than synchronous request, when the USB communication breaks apart.
+				if (WriteFile(DevHandle, data, data.Length, out uint written, ref overlapped)) {
+					// Synchronous exit - the write has been completed immediately:
+					if (written != data.Length) {
+						throw new Exception(string.Format("WriteUsb() failed: {0} bytes requested, but {1} written.", data.Length, written));
 					}
-
-					// Function returned error. The only acceptable error is ERROR_IO_PENDING state:
-					int err = Marshal.GetLastWin32Error();
-					if (err != ERROR_IO_PENDING) {
-						throw CreateWin32Exception(err, "WriteFile() system call failed");
-					}
-
-					// Now wait for the asynchronous callback:
-					if (Task.WaitAny(new Task[] { writeTask.Task }, Timeout, cancellationToken) == -1) {
-						CancelIo(DevHandle);
-						throw new TimeoutException("WriteFile() system call timed out.");
-					}
-
-					// Now we should have our writeTask complete:
-					(uint errorCode, uint bytesWritten) = writeTask.Task.Result;
-					if (errorCode != 0) {
-						throw CreateWin32Exception((int)errorCode, "WriteFile() system call failed asynchronously");
-					}
-					
-					// Did we successfully write the whole message?
-					if (bytesWritten != data.Length) {
-						throw new Exception(string.Format("WriteUsb() failed: {0} bytes requested, but {1} written.", data.Length, bytesWritten));
-					}
-				} finally {
-					// Ensure the unmanaged pointer has been successfully released:
-					Overlapped.Unpack(nativeOverlapped);
-					Overlapped.Free(nativeOverlapped);
+					return;
 				}
+
+				// Function returned error. The only acceptable error is ERROR_IO_PENDING state which means the operation is asynchronous:
+				int err = Marshal.GetLastWin32Error();
+				if (err != ERROR_IO_PENDING) {
+					throw CreateWin32Exception(err, "WriteFile() system call failed");
+				}
+
+				// Wait for completing and check the result:
+				int bytesWritten = WaitForAsyncOperation(ref overlapped, Timeout, cancellationToken);
+				if (bytesWritten != data.Length) {
+					throw new Exception(string.Format("WriteUsb() failed: {0} bytes requested, but {1} written.", data.Length, bytesWritten));
+				}
+			} finally {
+				CloseHandle(overlapped.EventHandle);
 			}
 		}
 
@@ -619,45 +578,27 @@ namespace ScpiNet
 		/// <returns>Number of bytes actually read.</returns>
 		protected int ReadUsb(byte[] buffer, int timeout, CancellationToken cancellationToken)
 		{
-			// This task will synchronize the asynchronous callback with async method:
-			TaskCompletionSource<(uint,uint)> readTask = new();
+			NativeOverlapped overlapped = new();
 
-			unsafe {
-				// Create overlapped structure pointer which will be used to process the asynchronous result:
-				Overlapped overlapped = new();
-				NativeOverlapped* nativeOverlapped = overlapped.Pack((uint errorCode, uint bytesRead, NativeOverlapped* _) => readTask.SetResult((errorCode, bytesRead)), null);
+			try {
+				overlapped.EventHandle = CreateEvent(IntPtr.Zero, false, false, null);
 
-				try {
-					// Issue read request:
-					if (ReadFile(DevHandle, buffer, buffer.Length, out int read, nativeOverlapped)) {
-						// Synchronous exit - the function has been completed immediately:
-						return read;
-					}
-
-					// Function returned error. The only acceptable error is ERROR_IO_PENDING state:
-					int err = Marshal.GetLastWin32Error();
-					if (err != ERROR_IO_PENDING) {
-						throw CreateWin32Exception(err, "ReadFile() system call failed");
-					}
-
-					// Now wait for the asynchronous callback:
-					if (Task.WaitAny(new Task[] { readTask.Task }, timeout, cancellationToken) == -1) {
-						CancelIo(DevHandle);
-						throw new TimeoutException("ReadFile() system call timed out.");
-					}
-
-					// Now we should have our writeTask complete:
-					(uint errorCode, uint readBytes) = readTask.Task.Result;
-					if (errorCode != 0) {
-						throw CreateWin32Exception((int)errorCode, "ReadFile() system call failed asynchronously");
-					}
-
-					return (int)readBytes;
-				} finally {
-					// Ensure the unmanaged pointer has been successfully released:
-					Overlapped.Unpack(nativeOverlapped);
-					Overlapped.Free(nativeOverlapped);
+				// Issue asynchronous read request:
+				if (ReadFile(DevHandle, buffer, buffer.Length, out int read, ref overlapped)) {
+					// Synchronous exit - the function has been completed immediately:
+					return read;
 				}
+
+				// Function returned error. The only acceptable error is ERROR_IO_PENDING state:
+				int err = Marshal.GetLastWin32Error();
+				if (err != ERROR_IO_PENDING) {
+					throw CreateWin32Exception(err, "ReadFile() system call failed");
+				}
+
+				// Wait for completing and return the number of transferred bytes:
+				return WaitForAsyncOperation(ref overlapped, timeout, cancellationToken);
+			} finally {
+				CloseHandle(overlapped.EventHandle);
 			}
 		}
 
