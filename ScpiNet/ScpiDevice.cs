@@ -159,7 +159,7 @@ namespace ScpiNet
 		/// <summary>
 		/// Performs a query to the device. First a command is sent and then a response is received.
 		/// </summary>
-		/// <param name="command">Command to send. New line is automatically added.</param>
+		/// <param name="command">Command to send. New line is automatically added.
 		/// Use only when you configured the instrument to include the headers in the response.</param>
 		/// <param name="cancellationToken">Cancellation token. Optional.</param>
 		/// <returns>Command response.</returns>
