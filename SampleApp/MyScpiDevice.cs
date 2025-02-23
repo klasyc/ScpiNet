@@ -52,7 +52,7 @@ namespace SampleApp
 		/// <returns>Value of the device's status buffer.</returns>
 		public async Task<string> ReadStatusByte(CancellationToken cancellationToken = default)
 		{
-			return await Query("*STB?", false, cancellationToken);
+			return await Query("*STB?", cancellationToken);
 		}
 	}
 }
